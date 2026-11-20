@@ -1460,42 +1460,59 @@
       }
     });
 
-    $("registerPasskey").addEventListener("click", async () => {
-      const button = $("registerPasskey");
-      button.disabled = true;
-      setStatus("passkeyRegisterStatus", "Preparando el registro seguro…", false);
-      try {
-        const client = await syncCurrentSessionToPasskeyClient();
-        const { data, error } = await client.auth.registerPasskey();
-        if (error) throw error;
-        setStatus("passkeyRegisterStatus", "¡Llave de acceso registrada! La próxima vez podrás entrar con la huella, el rostro o el PIN de este dispositivo.", false);
-      } catch (err) {
-        setStatus("passkeyRegisterStatus", err.message || "No se pudo registrar la llave de acceso.", true);
-      } finally {
-        button.disabled = false;
+    async function handleAdminSignIn(event) {
+      event.preventDefault();
+      const form = $("adminLoginForm");
+      const button = form ? form.querySelector('button[type="submit"]') : null;
+      const email = $("adminEmail").value.trim();
+      const password = $("adminPassword").value;
+      if (!email || !password) {
+        setStatus("passkeyLoginStatus", "Escribe el correo y la contraseña del administrador.", true);
+        return;
       }
-    });
+      if (button) button.disabled = true;
+      setStatus("passkeyLoginStatus", "Verificando el acceso…", false);
+      try {
+        await signInAdmin(email, password);
+        $("adminPassword").value = "";
+        setStatus("passkeyLoginStatus", "Acceso verificado.", false);
+        hideOverlay(loginOverlay);
+        showOverlay(adminOverlay);
+        renderAdminProducts();
+        setStatus("adminSessionStatus", `Sesión iniciada: ${email}`, false);
+        setStatus("productStatus", "Sesión segura iniciada. Ya puedes gestionar el catálogo.", false);
+        if (cloudCatalogIsEmpty && deviceDataSnapshot.products.length > 0) {
+          const importLocal = window.confirm("La base de datos compartida está vacía, pero este navegador tiene productos guardados localmente. ¿Quieres copiar esos productos y marcas a la nube para que estén disponibles en todos los teléfonos?");
+          if (importLocal) {
+            try {
+              products = await moveEmbeddedImagesToCloud(deviceDataSnapshot.products);
+              brands = deviceDataSnapshot.brands.slice();
+              if (await saveData("productStatus")) setStatus("productStatus", "Catálogo local copiado a la nube.", false);
+            } catch (migrationError) {
+              setStatus("productStatus", migrationError.message || "No se pudo copiar el catálogo local.", true);
+            }
+          }
+        }
+      } catch (err) {
+        setStatus("passkeyLoginStatus", err.message || "No se pudo iniciar sesión.", true);
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    $("adminLoginForm").addEventListener("submit", handleAdminSignIn);
 
     async function logoutAdmin() {
       const session = supabaseSession;
       supabaseSession = null;
-      if (passkeyClientPromise) {
-        try {
-          const client = await passkeyClientPromise;
-          await client.auth.signOut({ scope: "local" });
-        } catch (_) {}
-      }
       if (session && CLOUD_SYNC_ENABLED) {
         try {
-          await fetch(`${supabaseBaseUrl()}/auth/v1/logout`, {
-            method: "POST",
-            headers: { "apikey": SUPABASE_PUBLISHABLE_KEY, "Authorization": `Bearer ${session.access_token}` },
-            cache: "no-store"
-          });
+          await authFetch("logout", { method: "POST", headers: { "Authorization": `Bearer ${session.access_token}` } });
         } catch (_) {}
       }
       hideOverlay(adminOverlay);
       clearProductForm();
+      setStatus("adminSessionStatus", "Sesión cerrada.", false);
       setStatus("productStatus", "Sesión cerrada.", false);
     }
 
