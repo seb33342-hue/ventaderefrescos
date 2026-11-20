@@ -1,0 +1,1685 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#030303">
+  <meta name="description" content="Catálogo de refrescos — Etapa ll Edif.4. Página web refresco V0.22. Comparte el catálogo y solicita tu pedido por WhatsApp.">
+  <title>Venta de Refrescos Etapa ll Edif.4 | V0.22</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #000000;
+      --surface: #101010;
+      --surface-2: #171717;
+      --line: rgba(225, 225, 225, .14);
+      --text: #f4f8ff;
+      --muted: #9cacc5;
+      --blue: #3188ff;
+      --blue-bright: #60b5ff;
+      --green: #35d07f;
+      --danger: #ff647c;
+      --radius: 22px;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html { min-height: 100%; background: #000; scrollbar-width: none; -ms-overflow-style: none; }
+    html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }
+    body {
+      position: relative;
+      isolation: isolate;
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #000;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Fondo ambiental azul inspirado en la iluminación del menú de PS5.
+       La luz se desplaza mediante transform/opacity; no utiliza filtros pesados. */
+    .ambient-atmosphere {
+      position: absolute;
+      z-index: 0;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      background: #000;
+    }
+    .ambient-atmosphere::before,
+    .ambient-atmosphere::after {
+      content: "";
+      position: absolute;
+      pointer-events: none;
+    }
+    .ambient-atmosphere::before {
+      inset: 0;
+      opacity: .94;
+      background:
+        radial-gradient(ellipse 66% 61% at 0% 0%, rgba(20, 101, 224, .43) 0%, rgba(13, 67, 157, .25) 34%, rgba(5, 31, 83, .10) 59%, transparent 82%),
+        radial-gradient(ellipse 66% 61% at 100% 0%, rgba(20, 101, 224, .43) 0%, rgba(13, 67, 157, .25) 34%, rgba(5, 31, 83, .10) 59%, transparent 82%),
+        radial-gradient(ellipse 50% 36% at 23% 0%, rgba(22, 91, 190, .21), transparent 76%),
+        radial-gradient(ellipse 50% 36% at 77% 0%, rgba(22, 91, 190, .21), transparent 76%),
+        radial-gradient(ellipse 42% 30% at 0% 25%, rgba(17, 80, 187, .14), transparent 78%),
+        radial-gradient(ellipse 42% 30% at 100% 25%, rgba(17, 80, 187, .14), transparent 78%);
+      /* Gradiente estático: evita repintados y parpadeos al hacer scroll en móvil. */
+    }
+    .ambient-atmosphere::after {
+      inset: 0;
+      opacity: .78;
+      background:
+        radial-gradient(ellipse 40% 30% at 3% 5%, rgba(83, 160, 255, .25), transparent 76%),
+        radial-gradient(ellipse 40% 30% at 97% 5%, rgba(83, 160, 255, .25), transparent 76%),
+        radial-gradient(ellipse 31% 24% at 17% 17%, rgba(21, 91, 210, .16), transparent 80%),
+        radial-gradient(ellipse 31% 24% at 83% 17%, rgba(21, 91, 210, .16), transparent 80%);
+      /* Segundo halo estático, conservando la iluminación azul original. */
+    }
+    /* Canvas único y transparente: las partículas flotan delante de la luz ambiental. */
+    .particle-background {
+      position: fixed;
+      z-index: 1;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      contain: strict;
+    }
+
+    /* El texto base se mantiene limpio. Cada 3 s entra un rayo nuevo; tarda 6 s en cruzar la frase. */
+    .masked-heading {
+      position: relative;
+      display: block;
+      max-width: 100%;
+      margin: 0;
+      color: #d1e5ff;
+      -webkit-text-fill-color: currentColor;
+      -webkit-text-stroke: .28px rgba(183, 216, 255, .30);
+      text-shadow: 0 0 7px rgba(77, 151, 255, .16);
+      font-weight: 880;
+      animation: headingAppear .65s ease-out both;
+    }
+    .heading-ray {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+    }
+    .heading-ray::before {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+      text-wrap: balance;
+      background-image: linear-gradient(108deg,
+        transparent 0%, transparent 39%,
+        rgba(82, 208, 255, 0) 41%,
+        rgba(100, 222, 255, .92) 45.5%,
+        #ffffff 48.4%,
+        #ffffff 51.2%,
+        rgba(105, 226, 255, 1) 54%,
+        rgba(51, 157, 255, .66) 58%,
+        transparent 64%, transparent 100%);
+      background-size: 320% 100%;
+      background-position: 100% 0;
+      background-repeat: no-repeat;
+      -webkit-background-clip: text;
+      background-clip: text;
+      animation: headingLightPass 2.8s linear forwards;
+      will-change: background-position;
+    }
+    @keyframes headingAppear {
+      from { opacity: 0; transform: translateY(7px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes headingLightPass {
+      from { background-position: 100% 0; }
+      to { background-position: 0 0; }
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--blue-bright); outline-offset: 3px; }
+    button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+    button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
+    .page { position: relative; z-index: 2; width: min(690px, calc(100% - 32px)); margin: 0 0 0 16px; padding: 28px 0 54px; }
+    .topline { display: block; margin: 0 0 10px; padding: 8px 0 12px; text-align: left; cursor: default; user-select: none; }
+    h1 { max-width: 650px; margin: 0; color: #f6faff; font-size: clamp(29px, 6vw, 43px); font-weight: 850; letter-spacing: -.055em; line-height: 1.04; text-wrap: balance; text-align: left; }
+    .rule { height: 1px; margin: 0 0 22px; background: linear-gradient(90deg, rgba(39, 133, 255, .76), rgba(21, 75, 163, .20) 76%, transparent); }
+    .category-filter-row { display: flex; align-items: center; gap: 9px; width: fit-content; max-width: 100%; margin: 0 0 16px; }
+    .category-filter-label { color: #8493a8; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .category-picker { position: relative; width: min(245px, calc(100vw - 96px)); min-width: 0; flex: 0 0 auto; }
+    .category-trigger {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      width: 100%; min-height: 42px; padding: 9px 12px;
+      border: 1px solid rgba(74, 142, 255, .42); border-radius: 12px;
+      color: #eaf3ff; background: linear-gradient(145deg, rgba(16, 29, 47, .98), rgba(5, 8, 14, .99));
+      font: inherit; font-size: 12px; font-weight: 800; text-align: left;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 5px 15px rgba(0,0,0,.2);
+      transition: border-color .15s ease, background-color .15s ease;
+    }
+    .category-trigger:hover, .category-picker.is-open .category-trigger { border-color: rgba(91, 174, 255, .76); }
+    .category-trigger-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .category-trigger svg { flex: 0 0 auto; color: #8fcaff; transition: transform .16s ease; }
+    .category-picker.is-open .category-trigger svg { transform: rotate(180deg); }
+    .category-menu {
+      position: absolute; z-index: 20; top: calc(100% + 3px); left: 0;
+      width: 100%; max-height: min(320px, 52vh); overflow: auto;
+      transform-origin: top center;
+      padding: 7px; border: 1px solid rgba(74, 142, 255, .34); border-radius: 14px;
+      background: linear-gradient(150deg, #101d2e, #05090f 78%);
+      box-shadow: 0 14px 34px rgba(0,0,0,.62), inset 0 1px 0 rgba(255,255,255,.045);
+      overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(88,155,230,.45) transparent;
+    }
+    .category-menu[hidden] { display: none !important; }
+    .category-picker.is-open .category-menu {
+      animation: categoryPanelIn .24s cubic-bezier(.2,.78,.25,1) both;
+      will-change: opacity, transform;
+    }
+    .category-picker.is-closing .category-menu {
+      pointer-events: none;
+      animation: categoryPanelOut .17s cubic-bezier(.4,0,.8,.35) both;
+      will-change: opacity, transform;
+    }
+    @keyframes categoryPanelIn {
+      from { opacity: 0; transform: translate3d(0, -7px, 0) scale(.985); }
+      to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    }
+    @keyframes categoryPanelOut {
+      from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+      to { opacity: 0; transform: translate3d(0, -4px, 0) scale(.99); }
+    }
+    .category-option {
+      display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px;
+      padding: 9px 10px; border: 1px solid transparent; border-radius: 9px;
+      color: #cbd9eb; background: transparent; font: inherit; font-size: 12px;
+      font-weight: 700; text-align: left; transition: background-color .12s ease, color .12s ease;
+    }
+    .category-option::before { content: ""; flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: #52657f; }
+    .category-option:hover, .category-option:focus-visible { color: #fff; background: rgba(44, 112, 190, .17); }
+    .category-option[aria-selected="true"] {
+      color: #b9e3ff; border-color: rgba(68, 153, 255, .2);
+      background: linear-gradient(100deg, rgba(26, 111, 204, .25), rgba(17, 50, 83, .12));
+    }
+    .category-option[aria-selected="true"]::before {
+      background: #ffd84d;
+      box-shadow: 0 0 5px rgba(255, 216, 77, .95), 0 0 11px rgba(255, 205, 48, .78), 0 0 19px rgba(255, 190, 28, .48);
+    }
+    .category-filter-native { display: none !important; }
+    .catalog { display: grid; gap: 18px; }
+    .product {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+      align-items: stretch;
+      padding: 11px;
+      overflow: hidden;
+      border: 1px solid rgba(120, 166, 224, .19);
+      border-radius: 21px;
+      background: linear-gradient(145deg, rgba(13, 20, 31, .97), rgba(7, 11, 18, .99));
+      box-shadow: 0 8px 20px rgba(0, 0, 0, .18);
+      content-visibility: auto;
+      contain-intrinsic-size: auto 850px;
+    }
+    .product-visual { position: relative; width: 100%; aspect-ratio: 1 / 1; min-height: 0; overflow: hidden; border-radius: 14px; background: linear-gradient(145deg, #10233a, #070b12 73%); }
+    .product-visual::before { content: ""; position: absolute; z-index: 1; inset: 0; pointer-events: none; background: linear-gradient(135deg, rgba(95, 177, 255, .06), transparent 56%); }
+    .product-visual::after { content: ""; position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 43%; pointer-events: none; background: linear-gradient(180deg, rgba(7, 11, 18, 0) 0%, rgba(7, 11, 18, .10) 28%, rgba(7, 11, 18, .58) 72%, rgba(7, 11, 18, .96) 100%); }
+    .product-visual img { display: block; width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+    .visual-placeholder { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; }
+    .placeholder-glow { position: absolute; width: 130px; height: 130px; border-radius: 50%; background: rgba(45, 135, 255, .14); }
+    .can { position: relative; width: 61px; height: 119px; border-radius: 13px 13px 16px 16px; border: 1px solid rgba(255,255,255,.45); background: linear-gradient(90deg, #1b54bd, #318cf7 47%, #1252b5); box-shadow: 7px 14px 24px rgba(0,0,0,.35), inset 5px 0 7px rgba(255,255,255,.14), inset -5px 0 7px rgba(0,0,0,.18); transform: rotate(-7deg); }
+    .can::before { content: ""; position: absolute; top: -4px; left: 5px; right: 5px; height: 7px; border-radius: 5px; border: 1px solid #b7d2f5; background: linear-gradient(#eaf3ff,#769ac7); }
+    .can::after { content: ""; position: absolute; left: 0; right: 0; top: 26px; height: 34px; border-block: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.09); }
+    .product-info { display: flex; min-width: 0; flex-direction: column; padding: 15px 8px 7px; }
+    .product-name { margin: 0; overflow-wrap: anywhere; font-size: clamp(20px, 4.2vw, 25px); line-height: 1.2; font-weight: 780; letter-spacing: -.035em; }
+    .product-size { display: inline-flex; align-self: flex-start; margin: 8px 0 0; padding: 5px 9px; border: 1px solid rgba(91, 157, 255, .17); border-radius: 8px; color: #a8cfff; background: rgba(41, 103, 183, .12); font-size: 12px; font-weight: 700; }
+    .product-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+    .price-wrap { min-width: 86px; }
+    .price-caption {
+      display: block; margin-bottom: 3px; color: #85e5ae; font-size: 10px;
+      font-weight: 800; letter-spacing: .13em; text-transform: uppercase;
+      text-shadow: 0 0 6px rgba(67, 229, 139, .52), 0 0 14px rgba(67, 229, 139, .34), 0 0 24px rgba(67, 229, 139, .20);
+    }
+    .price {
+      color: #43e58b; font-size: clamp(22px, 4vw, 28px); font-weight: 850;
+      letter-spacing: -.04em; line-height: 1.15; white-space: nowrap;
+      text-shadow: 0 0 6px rgba(67, 229, 139, .52), 0 0 14px rgba(67, 229, 139, .34), 0 0 24px rgba(67, 229, 139, .20);
+    }
+    .request {
+      display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+      min-height: 47px; padding: 0 18px; border: 1px solid rgba(116, 255, 178, .28); border-radius: 13px;
+      color: #04150b; text-decoration: none; font-size: 13px; font-weight: 850; white-space: nowrap;
+      background: linear-gradient(120deg, #45e98c, #21c767);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.34),
+        0 5px 15px rgba(25,207,103,.23),
+        0 0 0 1px rgba(67,229,139,.18),
+        0 0 13px rgba(25,207,103,.48),
+        0 0 27px rgba(25,207,103,.31),
+        0 0 42px rgba(25,207,103,.17);
+      transition: transform .16s ease, filter .16s ease, box-shadow .16s ease;
+    }
+    .request:hover {
+      filter: brightness(1.09);
+      transform: translateY(-1px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.38), 0 6px 18px rgba(25,207,103,.30), 0 0 16px rgba(25,207,103,.58), 0 0 34px rgba(25,207,103,.38);
+    }
+    .request svg { flex: 0 0 auto; }
+    .empty { text-align: center; padding: 52px 22px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(145deg, rgba(17, 33, 56, .78), rgba(9, 17, 30, .9)); }
+    .empty-symbol { width: 47px; height: 47px; margin: 0 auto 17px; display: grid; place-items: center; border-radius: 15px; background: rgba(51, 134, 255, .13); color: #75baff; }
+    .empty h2 { margin: 0; font-size: 19px; letter-spacing: -.025em; }
+    .empty p { max-width: 310px; margin: 9px auto 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .footnote { margin: 20px 0 0; text-align: center; color: #61728e; font-size: 11px; }
+    .cloud-notice { max-width: 540px; margin: 8px auto 0; color: #8ea3bd; text-align: center; font-size: 10px; line-height: 1.5; }
+    .cloud-notice:empty { display: none; }
+    .admin-head-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+    .admin-head-actions .secondary { min-height: 35px; padding: 0 10px; font-size: 11px; }
+    .admin-access { position: fixed; right: 0; bottom: 0; z-index: 30; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; margin: 0; border: 0 !important; border-radius: 50%; background: transparent !important; background-color: transparent !important; box-shadow: none !important; outline: 0 !important; opacity: .06; transition: opacity .2s ease; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent !important; appearance: none; -webkit-appearance: none; }
+    .admin-access::before { content: ""; display: block; width: 4px; height: 4px; border-radius: 50%; background: #8a9db8; box-shadow: none; transition: transform .2s ease, opacity .2s ease; }
+    .admin-access.holding::before { transform: scale(1.3); opacity: .8; }
+    .admin-access:hover { opacity: .28; }
+    .admin-access:focus, .admin-access:focus-visible, .admin-access:active { outline: 0 !important; background: transparent !important; background-color: transparent !important; border-color: transparent !important; box-shadow: none !important; -webkit-tap-highlight-color: transparent !important; }
+
+    /* Administración */
+    .overlay { position: fixed; inset: 0; z-index: 40; display: none; align-items: flex-start; justify-content: center; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); background: rgba(0, 0, 0, .96); }
+    .overlay.show { display: flex; }
+    .dialog { width: min(690px, 100%); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); margin: auto; padding: 22px; overflow: auto; overscroll-behavior: contain; border: 1px solid rgba(117, 167, 255, .22); border-radius: 20px; background: #050505; box-shadow: 0 22px 70px rgba(0,0,0,.58); }
+    .dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 19px; }
+    .dialog-kicker { margin: 0 0 5px; color: #75baff; font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+    .dialog h2 { margin: 0; font-size: 23px; letter-spacing: -.04em; }
+    .subtext { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .icon-button { width: 35px; height: 35px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 10px; color: #cfddf3; background: #112039; font-size: 20px; }
+    .field { display: grid; gap: 7px; margin-bottom: 14px; }
+    .field label { color: #d6e4fa; font-size: 12px; font-weight: 650; }
+    .field input, .field select { width: 100%; min-height: 44px; padding: 11px 12px; border: 1px solid rgba(141, 174, 225, .2); border-radius: 11px; color: var(--text); background: #020202; }
+    .field select { cursor: pointer; }
+    .field input:focus-visible, .field select:focus-visible { border-color: rgba(96, 181, 255, .65); }
+    .field input[type="file"] { padding: 9px; color: var(--muted); font-size: 12px; }
+    .field input::file-selector-button { margin-right: 10px; padding: 6px 9px; border: 0; border-radius: 7px; color: #eaf3ff; background: #1d3c66; }
+    .form-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(120px, .6fr); gap: 12px; }
+    .primary, .secondary, .danger-button { min-height: 43px; padding: 0 15px; border-radius: 11px; font-size: 12px; font-weight: 750; }
+    .primary { border: 1px solid rgba(120, 190, 255, .4); color: white; background: linear-gradient(120deg, #1678ed, #2460dc); }
+    .secondary { border: 1px solid var(--line); color: #dceaff; background: #14233a; }
+    .danger-button { border: 1px solid rgba(255,100,124,.25); color: #ff9aab; background: rgba(255,100,124,.08); }
+    .form-actions { display: flex; gap: 9px; flex-wrap: wrap; }
+    .status { min-height: 18px; margin: 11px 0 0; color: #7cbaff; font-size: 12px; line-height: 1.45; }
+    .admin-divider { height: 1px; margin: 22px 0 17px; background: var(--line); }
+    .admin-list-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .admin-list-head h3 { margin: 0; font-size: 14px; }
+    .count { color: var(--muted); font-size: 11px; }
+    .admin-products { display: grid; gap: 8px; }
+    .admin-product { display: grid; grid-template-columns: 54px minmax(0,1fr) auto; align-items: center; gap: 11px; padding: 9px; border: 1px solid rgba(141,174,225,.12); border-radius: 12px; background: rgba(17,32,53,.72); }
+    .admin-thumb { position: relative; width: 54px; height: 54px; display: grid; place-items: center; overflow: hidden; border-radius: 9px; background: #10294b; }
+    .admin-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .admin-product-name { overflow-wrap: anywhere; font-size: 13px; font-weight: 700; }
+    .admin-product-price { margin-top: 4px; color: #90a6c6; font-size: 11px; }
+    .row-actions { display: flex; gap: 6px; }
+    .small-action { min-height: 33px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; color: #d9e7fc; background: #14243b; font-size: 11px; font-weight: 700; }
+    .small-action.delete { color: #ff9aab; }
+    .login-dialog { width: min(390px,100%); }
+    .login-lock { width: 43px; height: 43px; display: grid; place-items: center; margin-bottom: 15px; border: 1px solid rgba(94,168,255,.25); border-radius: 14px; color: #78bbff; background: rgba(44,124,237,.12); }
+    .brand-create { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+    .brand-create input { min-width: 0; width: 100%; min-height: 43px; padding: 10px 12px; border: 1px solid rgba(141, 174, 225, .2); border-radius: 11px; color: var(--text); background: #020202; }
+    .brand-options { display: grid; gap: 7px; }
+    .brand-option { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border: 1px solid rgba(141,174,225,.12); border-radius: 10px; background: #080808; }
+    .brand-option-name { min-width: 0; overflow-wrap: anywhere; color: #e8f0fc; font-size: 12px; font-weight: 700; }
+    .brand-option-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+    .login-actions { display: flex; gap: 9px; margin-top: 4px; }
+    .login-actions button { flex: 1; }
+    .passkey-login-wrap { display: grid; gap: 7px; margin-top: 13px; }
+    .passkey-login-wrap .secondary { width: 100%; min-height: 42px; }
+    .passkey-note { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .passkey-settings { margin: 0 0 18px; padding: 13px; border: 1px solid rgba(119,177,255,.18); border-radius: 13px; background: rgba(12,29,51,.58); }
+    .passkey-settings h3 { margin: 0 0 5px; font-size: 13px; }
+    .passkey-settings p { margin: 0 0 10px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .passkey-settings .secondary { width: 100%; min-height: 39px; }
+    .hidden { display: none !important; }
+
+    /* Compartir: discreto y anclado a la posición inicial de la página. */
+    .share-launcher {
+      position: absolute;
+      z-index: 35;
+      top: max(36px, env(safe-area-inset-top));
+      right: max(13px, env(safe-area-inset-right));
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      border: 1px solid rgba(119, 177, 255, .19);
+      border-radius: 14px;
+      color: rgba(194, 221, 255, .88);
+      background: rgba(5, 13, 25, .42);
+      box-shadow: 0 0 18px rgba(53, 130, 255, .055), inset 0 1px 0 rgba(255,255,255,.035);
+      opacity: .86;
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      transition: opacity .18s ease, border-color .18s ease, background-color .18s ease, transform .18s ease;
+    }
+    .share-launcher:hover,
+    .share-launcher[aria-expanded="true"] {
+      opacity: .98;
+      border-color: rgba(119, 177, 255, .36);
+      background: rgba(8, 21, 40, .72);
+    }
+    .share-launcher:active { transform: scale(.96); }
+    .share-launcher svg { width: 19px; height: 19px; }
+    .share-panel {
+      position: absolute;
+      z-index: 35;
+      top: calc(max(36px, env(safe-area-inset-top)) + 52px);
+      right: max(13px, env(safe-area-inset-right));
+      width: min(360px, calc(100vw - 26px));
+      padding: 16px;
+      border: 1px solid rgba(104, 166, 255, .25);
+      border-radius: 17px;
+      color: #edf5ff;
+      background: linear-gradient(150deg, rgba(13, 27, 46, .97), rgba(3, 7, 13, .985) 76%);
+      box-shadow: 0 18px 48px rgba(0,0,0,.62), 0 0 24px rgba(44, 125, 255, .105), inset 0 1px 0 rgba(255,255,255,.045);
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+      transform-origin: top right;
+    }
+    .share-panel[hidden] { display: none !important; }
+    .share-panel.is-open {
+      animation: sharePanelIn .23s cubic-bezier(.2,.78,.25,1) both;
+      will-change: opacity, transform;
+    }
+    .share-panel.is-closing {
+      pointer-events: none;
+      animation: sharePanelOut .17s cubic-bezier(.4,0,.8,.35) both;
+      will-change: opacity, transform;
+    }
+    @keyframes sharePanelIn {
+      from { opacity: 0; transform: translate3d(0,-7px,0) scale(.975); }
+      to { opacity: 1; transform: translate3d(0,0,0) scale(1); }
+    }
+    @keyframes sharePanelOut {
+      from { opacity: 1; transform: translate3d(0,0,0) scale(1); }
+      to { opacity: 0; transform: translate3d(0,-4px,0) scale(.985); }
+    }
+    .share-panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .share-panel-title {
+      margin: 1px 0 0;
+      color: #f1f7ff;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -.025em;
+      line-height: 1.3;
+    }
+    .share-close {
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      margin: -4px -4px 0 0;
+      padding: 0;
+      border: 1px solid rgba(171, 196, 228, .13);
+      border-radius: 9px;
+      color: #aebed3;
+      background: rgba(255,255,255,.035);
+      font-size: 21px;
+      line-height: 1;
+      transition: color .15s ease, background-color .15s ease, border-color .15s ease;
+    }
+    .share-close:hover { color: #fff; background: rgba(255,255,255,.09); border-color: rgba(171,196,228,.26); }
+    .share-link-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: stretch; gap: 8px; }
+    .share-link-input {
+      width: 100%;
+      min-width: 0;
+      min-height: 41px;
+      padding: 0 10px;
+      border: 1px solid rgba(119, 157, 207, .2);
+      border-radius: 10px;
+      color: #d5e7ff;
+      background: rgba(0,0,0,.42);
+      font: inherit;
+      font-size: 11px;
+      text-overflow: ellipsis;
+    }
+    .share-link-input::placeholder { color: #71839b; opacity: 1; }
+    .share-copy {
+      min-width: 82px;
+      min-height: 41px;
+      padding: 0 13px;
+      border: 1px solid rgba(79, 158, 255, .44);
+      border-radius: 10px;
+      color: #edf6ff;
+      background: linear-gradient(145deg, rgba(27, 94, 163, .72), rgba(13, 48, 88, .88));
+      box-shadow: 0 0 14px rgba(53, 130, 255, .10), inset 0 1px 0 rgba(255,255,255,.07);
+      font-size: 11px;
+      font-weight: 800;
+      transition: opacity .15s ease, border-color .15s ease, transform .15s ease;
+    }
+    .share-copy:hover:not(:disabled) { border-color: rgba(112, 185, 255, .7); }
+    .share-copy:active:not(:disabled) { transform: scale(.97); }
+    .share-copy:disabled { cursor: not-allowed; opacity: .42; }
+    .share-status { min-height: 0; margin: 8px 1px 0; color: #7ed9a5; font-size: 10px; line-height: 1.4; }
+    .share-status:empty { display: none; }
+    @media (max-width: 560px) {
+      .page { width: calc(100% - 22px); max-width: 480px; margin-left: 11px; padding-top: 20px; }
+      .share-panel { right: max(11px, env(safe-area-inset-right)); width: min(360px, calc(100vw - 22px)); }
+      .topline { margin-bottom: 9px; }
+      .catalog { gap: 13px; }
+      .product { padding: 9px; border-radius: 17px; contain-intrinsic-size: auto 520px; }
+      .product-visual { border-radius: 12px; }
+      .product-info { padding: 13px 4px 5px; }
+      .product-name { font-size: 20px; }
+      .product-bottom { gap: 10px; margin-top: 12px; }
+      .price { font-size: 22px; }
+      .price-caption { font-size: 9px; }
+      .request { flex: 1; min-width: 138px; min-height: 43px; padding: 0 10px; font-size: 12px; }
+      .dialog { width: 100%; max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px); padding: 16px; border-radius: 15px; }
+      .form-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+      .category-filter-row { gap: 7px; margin-bottom: 14px; }
+      .category-filter { width: min(235px, calc(100vw - 92px)); }
+      .brand-create { grid-template-columns: minmax(0, 1fr); }
+      .admin-product { grid-template-columns: 45px minmax(0,1fr); }
+      .admin-thumb { position: relative; width: 45px; height: 45px; }
+      .row-actions { grid-column: 2; flex-wrap: wrap; }
+      .empty { padding: 40px 18px; }
+    }
+    @media (max-height: 520px) and (orientation: landscape) {
+      .overlay { padding-top: 8px; padding-bottom: 8px; }
+      .dialog { max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); padding: 14px; }
+      .dialog-head { margin-bottom: 12px; }
+    }
+    /* Los efectos decorativos descansan si la pestaña queda oculta; nunca se pausan por scroll o toque. */
+    body.is-page-hidden .masked-heading,
+    body.is-page-hidden .heading-ray::before,
+    body.is-page-hidden .ambient-atmosphere::before,
+    body.is-page-hidden .ambient-atmosphere::after { animation-play-state: paused !important; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-atmosphere" aria-hidden="true"></div>
+  <canvas class="particle-background" id="particleBackground" aria-hidden="true"></canvas>
+  <button class="share-launcher" id="shareButton" type="button" aria-label="Compartir esta página" aria-haspopup="dialog" aria-expanded="false" aria-controls="sharePanel" title="Compartir página">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="18" cy="5" r="2.6" stroke="currentColor" stroke-width="1.7"/><circle cx="6" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/><circle cx="18" cy="19" r="2.6" stroke="currentColor" stroke-width="1.7"/><path d="m8.3 10.8 7.3-4.4M8.3 13.2l7.3 4.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+  </button>
+  <section class="share-panel" id="sharePanel" role="dialog" aria-labelledby="sharePanelTitle" aria-hidden="true" hidden>
+    <div class="share-panel-head">
+      <h2 class="share-panel-title" id="sharePanelTitle">¿Quieres compartir esta página?</h2>
+      <button class="share-close" id="closeShare" type="button" aria-label="Cerrar panel de compartir">×</button>
+    </div>
+    <div class="share-link-row">
+      <input class="share-link-input" id="shareLink" type="text" readonly aria-label="Enlace de esta página">
+      <button class="share-copy" id="copyShareLink" type="button" disabled>Copiar</button>
+    </div>
+    <p class="share-status" id="shareStatus" role="status" aria-live="polite"></p>
+  </section>
+  <main id="pageMain" class="page">
+    <header class="topline" aria-label="Venta de Refrescos Etapa ll Edif.4">
+      <h1 class="masked-heading" id="maskedHeading" data-text="Venta de Refrescos Etapa ll Edif.4">Venta de Refrescos Etapa ll Edif.4</h1>
+    </header>
+    <div class="category-filter-row">
+      <span class="category-filter-label">Ver</span>
+      <div class="category-picker" id="categoryPicker">
+        <button class="category-trigger" id="categoryTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="categoryMenu" aria-label="Seleccionar tipo de refresco">
+          <span class="category-trigger-label" id="categoryTriggerLabel">Todos los refrescos</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="category-menu" id="categoryMenu" role="listbox" aria-label="Tipos de refresco" hidden></div>
+        <select class="category-filter-native" id="categoryFilter" aria-hidden="true" tabindex="-1">
+          <option value="all">Todos los refrescos</option>
+        </select>
+      </div>
+    </div>
+    <div class="rule" aria-hidden="true"></div>
+    <section class="catalog" id="catalog" aria-label="Catálogo de refrescos"></section>
+    <p class="footnote">Pedidos directos por WhatsApp</p>
+    <p class="cloud-notice" id="cloudNotice" role="status" aria-live="polite"></p>
+  </main>
+  <button class="admin-access" id="adminAccess" type="button" aria-label="Acceso a administración" title="Acceso privado"></button>
+
+  <section class="overlay" id="loginOverlay" role="dialog" aria-modal="true" aria-labelledby="loginTitle" aria-hidden="true">
+    <div class="dialog login-dialog">
+      <div class="login-lock" aria-hidden="true">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><rect x="4.5" y="10" width="15" height="11" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.2" fill="currentColor"/></svg>
+      </div>
+      <div class="dialog-head">
+        <div><p class="dialog-kicker">Acceso privado</p><h2 id="loginTitle">Administración</h2><p class="subtext">Desbloquea el panel con la huella, el rostro o el método de seguridad de tu dispositivo.</p></div>
+        <button class="icon-button" id="closeLogin" type="button" aria-label="Cerrar">×</button>
+      </div>
+      <div class="passkey-login-wrap">
+        <button class="primary" id="passkeySignIn" type="button">Desbloquear con huella</button>
+        <p class="passkey-note">No se solicita Gmail ni contraseña. Tu dispositivo verifica tu identidad; la página no recibe ni guarda tu huella. Debes tener una llave de acceso registrada para esta cuenta administradora.</p>
+        <p class="status" id="passkeyLoginStatus" role="status" aria-live="polite"></p>
+        <button class="secondary" id="cancelLogin" type="button">Cancelar</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="overlay" id="adminOverlay" role="dialog" aria-modal="true" aria-labelledby="adminTitle" aria-hidden="true">
+    <div class="dialog">
+      <div class="dialog-head">
+        <div><p class="dialog-kicker">Catálogo privado</p><h2 id="adminTitle">Administrar refrescos</h2><p class="subtext">Agrega productos, cambia precios o elimina los que ya no tengas.</p></div>
+        <div class="admin-head-actions">
+          <button class="secondary" id="logoutAdmin" type="button">Cerrar sesión</button>
+          <button class="icon-button" id="closeAdmin" type="button" aria-label="Cerrar administración">×</button>
+        </div>
+      </div>
+      <section class="passkey-settings" aria-labelledby="passkeySettingsTitle">
+        <h3 id="passkeySettingsTitle">Acceso biométrico de este dispositivo</h3>
+        <p>Después de entrar con tu llave de acceso administradora, puedes registrar otra llave para este u otro dispositivo. El teléfono verifica la huella, el rostro o el PIN; la página nunca recibe tu información biométrica.</p>
+        <button class="secondary" id="registerPasskey" type="button">Activar huella / llave de acceso</button>
+        <p class="status" id="passkeyRegisterStatus" role="status"></p>
+      </section>
+      <form id="productForm">
+        <div class="form-grid">
+          <div class="field"><label for="productName">Nombre del refresco</label><input id="productName" maxlength="90" placeholder="Ej. Refresco de cola" required></div>
+          <div class="field"><label for="productPrice">Precio (Bs.)</label><input id="productPrice" inputmode="decimal" autocomplete="off" placeholder="Ej. 85,00" pattern="[0-9]+([.,][0-9]{1,2})?" required></div>
+        </div>
+        <div class="field"><label for="productBrand">Marca / categoría (opcional)</label><select id="productBrand"><option value="">Sin clasificar</option></select></div>
+        <div class="field"><label for="productSize">Tamaño del envase</label>
+          <select id="productSize" required>
+            <option value="">Selecciona el tamaño</option>
+            <option value="Personal (250 ml)">Pequeño · 250 ml</option>
+            <option value="355 ml">355 ml</option>
+            <option value="600 ml">600 ml</option>
+            <option value="1 litro">1 litro</option>
+            <option value="1.5 litros">1,5 litros</option>
+            <option value="2 litros">2 litros</option>
+            <option value="2.25 litros">2,25 litros</option>
+            <option value="__otro__">Otro tamaño…</option>
+          </select>
+        </div>
+        <div class="field hidden" id="customSizeWrap"><label for="productSizeCustom">Escribe el tamaño</label><input id="productSizeCustom" maxlength="35" placeholder="Ej. 500 ml o 3 litros"></div>
+        <div class="field"><label for="productImage">Foto del refresco (opcional)</label><input id="productImage" type="file" accept="image/*"></div>
+        <div class="form-actions"><button class="primary" id="saveProduct" type="submit">Añadir refresco</button><button class="secondary hidden" id="cancelEdit" type="button">Cancelar edición</button></div>
+        <p class="status" id="productStatus" role="status"></p>
+      </form>
+      <div class="admin-divider"></div>
+      <div class="admin-list-head"><h3>Opciones del filtro</h3><span class="count" id="brandCount">0 marcas</span></div>
+      <form id="brandForm">
+        <div class="field"><label for="newBrandName">Añadir marca o tipo de refresco</label><div class="brand-create"><input id="newBrandName" maxlength="40" autocomplete="off" placeholder="Ej. Pepsi, Coca-Cola, Té frío" required><button class="primary" type="submit">Añadir</button></div></div>
+        <p class="status" id="brandStatus" role="status"></p>
+      </form>
+      <div class="brand-options" id="brandOptions"></div>
+      <div class="admin-divider"></div>
+      <div class="admin-list-head"><h3>Productos del catálogo</h3><span class="count" id="productCount">0 productos</span></div>
+      <div class="admin-products" id="adminProducts"></div>
+    </div>
+  </section>
+
+  <script>
+    // Al exportar el HTML, esta lista se incorpora como catálogo inicial del archivo publicado.
+    const DEFAULT_PRODUCTS = [];
+    const DEFAULT_BRANDS = ["Pepsi", "Coca-Cola", "Fanta", "Sprite", "7Up", "Otros"];
+    // v2 guarda marcas y productos juntos para evitar actualizaciones parciales.
+    // Las claves v1 se conservan como origen de migración para instalaciones existentes.
+    const LEGACY_PRODUCTS_KEY = "ventaRefrescos_catalogo_v1";
+    const LEGACY_BRANDS_KEY = "ventaRefrescos_marcas_v1";
+    const DATA_STORAGE_KEY = "ventaRefrescos_datos_v2";
+    // Configuración pública de Supabase. La clave publishable puede estar en el navegador;
+    // NUNCA pegues aquí una clave secret/service_role.
+    const SUPABASE_URL = "https://TU-PROYECTO.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_TU_CLAVE";
+    const SUPABASE_ADMIN_USER_ID = "UUID_DEL_USUARIO_ADMIN";
+    const SUPABASE_TABLE = "refresco_catalog";
+    const CLOUD_SYNC_ENABLED = /^https:\/\//i.test(SUPABASE_URL) &&
+      !SUPABASE_URL.includes("TU-PROYECTO") &&
+      SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_") &&
+      !SUPABASE_PUBLISHABLE_KEY.includes("TU_CLAVE") &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(SUPABASE_ADMIN_USER_ID);
+    const WHATSAPP_NUMBER = "584123168479"; // Número venezolano 04123168479, en formato internacional para WhatsApp.
+
+    const $ = (id) => document.getElementById(id);
+
+    // Polvo flotante visible: trayectorias errantes con dirección variable, un canvas y un solo RAF.
+    // Polvo flotante siempre activo mientras la página está visible: también durante
+    // scroll, toques y apertura de menús. Un canvas, un único requestAnimationFrame.
+    function initParticleBackground() {
+      const canvas = $("particleBackground");
+      if (!canvas || typeof canvas.getContext !== "function") return;
+      const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
+      if (!ctx) return;
+
+      const memory = Number(navigator.deviceMemory) || 4;
+      const cores = Number(navigator.hardwareConcurrency) || 4;
+      const lowPowerDevice = memory <= 2 || cores <= 4;
+      const palette = ["#78bdff", "#4ba2ff", "#2f83e8", "#9bd2ff", "#c1e4ff"];
+      let width = 0;
+      let height = 0;
+      let particles = [];
+      let rafId = 0;
+      let previousTime = 0;
+
+      function chooseDirection(particle) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 19 + Math.random() * (lowPowerDevice ? 21 : 30);
+        particle.targetVx = Math.cos(angle) * speed;
+        particle.targetVy = Math.sin(angle) * speed;
+        particle.turnIn = 1.2 + Math.random() * 2.2;
+      }
+
+      function makeParticle() {
+        const particle = {
+          x: Math.random() * width,
+          y: Math.random() * height,
+          radius: 1.25 + Math.random() * 1.85,
+          alpha: 0.66 + Math.random() * 0.32,
+          color: palette[Math.floor(Math.random() * palette.length)],
+          vx: (Math.random() - 0.5) * 34,
+          vy: (Math.random() - 0.5) * 34,
+          targetVx: 0,
+          targetVy: 0,
+          turnIn: 0,
+          phase: Math.random() * Math.PI * 2,
+          twinkle: 0.45 + Math.random() * 0.9
+        };
+        chooseDirection(particle);
+        particle.vx = particle.targetVx * (0.45 + Math.random() * 0.45);
+        particle.vy = particle.targetVy * (0.45 + Math.random() * 0.45);
+        return particle;
+      }
+
+      function paint(deltaSeconds, elapsedSeconds) {
+        ctx.clearRect(0, 0, width, height);
+        for (const particle of particles) {
+          if (deltaSeconds > 0) {
+            particle.turnIn -= deltaSeconds;
+            if (particle.turnIn <= 0) chooseDirection(particle);
+            // Interpolación suave de rumbo: evita saltos y conserva el movimiento errante.
+            const steering = Math.min(1, deltaSeconds * 0.82);
+            particle.vx += (particle.targetVx - particle.vx) * steering;
+            particle.vy += (particle.targetVy - particle.vy) * steering;
+            particle.x += particle.vx * deltaSeconds;
+            particle.y += particle.vy * deltaSeconds;
+            if (particle.x < -5) particle.x = width + 5;
+            else if (particle.x > width + 5) particle.x = -5;
+            if (particle.y < -5) particle.y = height + 5;
+            else if (particle.y > height + 5) particle.y = -5;
+          }
+          const pulse = 0.78 + 0.22 * Math.sin(elapsedSeconds * particle.twinkle + particle.phase);
+          ctx.globalAlpha = particle.alpha * pulse;
+          ctx.fillStyle = particle.color;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function frame(timestamp) {
+        rafId = 0;
+        if (document.hidden) return;
+        // Se aprovecha la frecuencia nativa de requestAnimationFrame del dispositivo.
+        // No se detiene por eventos de scroll, pointer/touch ni por la apertura de menús.
+        const delta = previousTime ? Math.min((timestamp - previousTime) / 1000, 0.04) : 0;
+        previousTime = timestamp;
+        paint(delta, timestamp / 1000);
+        rafId = window.requestAnimationFrame(frame);
+      }
+
+      function start() {
+        if (rafId || document.hidden) return;
+        previousTime = 0;
+        rafId = window.requestAnimationFrame(frame);
+      }
+
+      function stop() {
+        if (rafId) window.cancelAnimationFrame(rafId);
+        rafId = 0;
+        previousTime = 0;
+      }
+
+      function resize() {
+        const nextWidth = Math.max(1, Math.floor(window.innerWidth));
+        const nextHeight = Math.max(1, Math.floor(window.innerHeight));
+        if (nextWidth === width && nextHeight === height) return;
+        width = nextWidth;
+        height = nextHeight;
+        // DPR limitado a 1 para mantener bajo el coste de dibujo en pantallas móviles.
+        canvas.width = width;
+        canvas.height = height;
+        const area = width * height;
+        // Recupera la densidad visual de V0.18; reduce solo el máximo en equipos modestos.
+        const count = lowPowerDevice
+          ? Math.max(54, Math.min(82, Math.round(area / 9200)))
+          : Math.max(72, Math.min(110, Math.round(area / 7600)));
+        particles = Array.from({ length: count }, makeParticle);
+        paint(0, performance.now() / 1000);
+      }
+
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+      function updateMotionState() {
+        // Solo descansa cuando la pestaña está realmente oculta o el usuario
+        // ha solicitado movimiento reducido en la configuración del dispositivo.
+        if (document.hidden || reducedMotion.matches) {
+          stop();
+          if (!document.hidden && reducedMotion.matches) paint(0, performance.now() / 1000);
+        } else start();
+      }
+
+      window.addEventListener("resize", resize, { passive: true });
+      document.addEventListener("visibilitychange", updateMotionState);
+      if (typeof reducedMotion.addEventListener === "function") reducedMotion.addEventListener("change", updateMotionState);
+      resize();
+      updateMotionState();
+    }
+
+    // Barrido breve y espaciado para reducir trabajo de pintura en móviles.
+    let headingRayInterval = null;
+    let headingScrollTimer = null;
+    const HEADING_RAY_INTERVAL_MS = 7600;
+    window.addEventListener("scroll", () => {
+      if (headingRayInterval !== null) window.clearInterval(headingRayInterval);
+      headingRayInterval = null;
+      if (headingScrollTimer !== null) window.clearTimeout(headingScrollTimer);
+      headingScrollTimer = window.setTimeout(() => {
+        headingScrollTimer = null;
+        updateHeadingRayLoop();
+      }, 500);
+    }, { passive: true });
+    function launchHeadingRay() {
+      const heading = $("maskedHeading");
+      if (!heading || document.hidden || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      const ray = document.createElement("span");
+      ray.className = "heading-ray";
+      ray.dataset.text = heading.dataset.text || heading.textContent.trim();
+      ray.setAttribute("aria-hidden", "true");
+      heading.appendChild(ray);
+      ray.addEventListener("animationend", () => ray.remove(), { once: true });
+      // Respaldo por si el navegador no dispara animationend.
+      window.setTimeout(() => { if (ray.isConnected) ray.remove(); }, 3400);
+    }
+    function updateHeadingRayLoop() {
+      const shouldRun = !document.hidden && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!shouldRun) {
+        if (headingRayInterval !== null) window.clearInterval(headingRayInterval);
+        headingRayInterval = null;
+        return;
+      }
+      if (headingRayInterval !== null) return;
+      launchHeadingRay();
+      headingRayInterval = window.setInterval(launchHeadingRay, HEADING_RAY_INTERVAL_MS);
+    }
+
+    // Panel de compartir: el enlace se obtiene de la URL pública en la que se visita la página.
+    const shareButton = $("shareButton");
+    const sharePanel = $("sharePanel");
+    const closeShareButton = $("closeShare");
+    const shareLinkInput = $("shareLink");
+    const copyShareButton = $("copyShareLink");
+    const shareStatus = $("shareStatus");
+    let shareCloseTimer = null;
+
+    function refreshShareLink() {
+      const currentUrl = window.location.href;
+      const isPublicUrl = /^https?:\/\//i.test(currentUrl);
+      shareLinkInput.value = isPublicUrl ? currentUrl : "";
+      copyShareButton.disabled = !isPublicUrl;
+      shareStatus.textContent = "";
+      return isPublicUrl;
+    }
+
+    function openSharePanel() {
+      if (shareCloseTimer !== null) window.clearTimeout(shareCloseTimer);
+      shareCloseTimer = null;
+      refreshShareLink();
+      sharePanel.hidden = false;
+      sharePanel.setAttribute("aria-hidden", "false");
+      sharePanel.classList.remove("is-closing");
+      shareButton.setAttribute("aria-expanded", "true");
+      window.requestAnimationFrame(() => {
+        if (!sharePanel.hidden && !sharePanel.classList.contains("is-closing")) sharePanel.classList.add("is-open");
+      });
+    }
+
+    function closeSharePanel(returnFocus = true) {
+      if (sharePanel.hidden) return;
+      if (shareCloseTimer !== null) window.clearTimeout(shareCloseTimer);
+      sharePanel.classList.remove("is-open");
+      sharePanel.classList.add("is-closing");
+      shareButton.setAttribute("aria-expanded", "false");
+      sharePanel.setAttribute("aria-hidden", "true");
+      if (returnFocus && sharePanel.contains(document.activeElement)) shareButton.focus();
+      shareCloseTimer = window.setTimeout(() => {
+        sharePanel.hidden = true;
+        sharePanel.classList.remove("is-closing", "is-open");
+        shareCloseTimer = null;
+      }, 190);
+    }
+
+    async function copyCurrentPageLink() {
+      if (!refreshShareLink()) return;
+      const link = shareLinkInput.value;
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(link);
+        } else {
+          shareLinkInput.focus();
+          shareLinkInput.select();
+          const copied = document.execCommand("copy");
+          shareLinkInput.setSelectionRange(0, 0);
+          if (!copied) throw new Error("El navegador no permitió copiar el enlace.");
+        }
+        shareStatus.textContent = "¡Enlace copiado! Ya puedes compartirlo.";
+      } catch (error) {
+        shareStatus.textContent = "No se pudo copiar automáticamente. Mantén pulsado el enlace para copiarlo.";
+        shareLinkInput.focus();
+        shareLinkInput.select();
+      }
+    }
+
+    shareButton.addEventListener("click", () => {
+      if (sharePanel.hidden || sharePanel.classList.contains("is-closing")) openSharePanel();
+      else closeSharePanel(false);
+    });
+    closeShareButton.addEventListener("click", () => closeSharePanel());
+    copyShareButton.addEventListener("click", copyCurrentPageLink);
+    shareLinkInput.addEventListener("click", () => shareLinkInput.select());
+    document.addEventListener("pointerdown", (event) => {
+      if (!sharePanel.hidden && !sharePanel.contains(event.target) && event.target !== shareButton && !shareButton.contains(event.target)) {
+        closeSharePanel(false);
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !sharePanel.hidden) {
+        event.preventDefault();
+        closeSharePanel();
+      }
+    });
+
+    const catalogEl = $("catalog");
+    const loginOverlay = $("loginOverlay");
+    const adminOverlay = $("adminOverlay");
+    const initialData = loadInitialData();
+    let products = initialData.products;
+    let brands = initialData.brands;
+    const deviceDataSnapshot = { products: initialData.products.slice(), brands: initialData.brands.slice() };
+    let cloudCatalogIsEmpty = false;
+    let cloudLastUpdated = null;
+    let supabaseSession = null; // Solo memoria de esta pestaña; no se guarda la sesión en localStorage.
+    let passkeyClientPromise = null;
+    let cloudPollTimer = null;
+    let activeBrand = "all";
+    let editingId = null;
+    let lastFocusedElement = null;
+
+    function readStoredJson(key) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw === null ? null : JSON.parse(raw);
+      } catch (err) {
+        console.warn(`No se pudieron leer los datos guardados (${key}).`, err);
+        return null;
+      }
+    }
+    function normalizeBrands(value) {
+      if (!Array.isArray(value)) return DEFAULT_BRANDS.slice();
+      const result = [];
+      const seen = new Set();
+      value.forEach((item) => {
+        if (typeof item !== "string") return;
+        const name = item.trim().slice(0, 40);
+        const key = name.toLocaleLowerCase();
+        if (name && !seen.has(key)) { seen.add(key); result.push(name); }
+      });
+      return result;
+    }
+    function normalizeProducts(value) {
+      if (!Array.isArray(value)) return DEFAULT_PRODUCTS.slice();
+      const seenIds = new Set();
+      const result = [];
+      value.forEach((item, index) => {
+        if (!item || typeof item !== "object") return;
+        const name = typeof item.name === "string" ? item.name.trim().slice(0, 90) : "";
+        const price = typeof item.price === "number" ? item.price : parsePrice(item.price);
+        if (!name || !Number.isFinite(price) || price < 0) return;
+        let id = typeof item.id === "string" ? item.id.slice(0, 100) : "";
+        if (!id || seenIds.has(id)) id = `migrado_${index}_${Date.now().toString(36)}`;
+        while (seenIds.has(id)) id += "_";
+        seenIds.add(id);
+        const brand = typeof item.brand === "string" ? item.brand.trim().slice(0, 40) : "";
+        const size = typeof item.size === "string" ? item.size.trim().slice(0, 35) : "";
+        const rawImage = typeof item.image === "string" ? item.image : "";
+        const dataImage = /^data:image\/(?:webp|jpeg|png);base64,/i.test(rawImage) && rawImage.length <= 2000000;
+        const storagePrefix = `${SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/public/refresco-images/`;
+        const cloudImage = CLOUD_SYNC_ENABLED && rawImage.startsWith(storagePrefix) && rawImage.length <= 2000;
+        const image = dataImage || cloudImage ? rawImage : "";
+        result.push({ id, name, brand, price, size, image });
+      });
+      return result;
+    }
+    function loadInitialData() {
+      const current = readStoredJson(DATA_STORAGE_KEY);
+      if (current && Array.isArray(current.products) && Array.isArray(current.brands)) {
+        return { products: normalizeProducts(current.products), brands: normalizeBrands(current.brands) };
+      }
+      return {
+        products: normalizeProducts(readStoredJson(LEGACY_PRODUCTS_KEY) ?? DEFAULT_PRODUCTS),
+        brands: normalizeBrands(readStoredJson(LEGACY_BRANDS_KEY) ?? DEFAULT_BRANDS)
+      };
+    }
+    function supabaseBaseUrl() { return SUPABASE_URL.replace(/\/+$/, ""); }
+    function supabasePublicHeaders() {
+      // La Publishable key va en apikey; Authorization queda reservado al JWT del usuario autenticado.
+      return { "apikey": SUPABASE_PUBLISHABLE_KEY };
+    }
+    async function readApiError(response) {
+      let detail = "";
+      try {
+        const body = await response.json();
+        detail = body.msg || body.message || body.error_description || body.error || "";
+      } catch (_) {}
+      return detail || `Error del servicio (${response.status}).`;
+    }
+    async function getPasskeyClient() {
+      if (!CLOUD_SYNC_ENABLED) {
+        throw new Error("El acceso por huella todavía no está activado. Falta conectar el servicio seguro y registrar la primera llave administradora.");
+      }
+      if (!window.isSecureContext || !navigator.credentials || !window.PublicKeyCredential) {
+        throw new Error("Este navegador no permite llaves de acceso aquí. Abre la página publicada mediante HTTPS en un navegador compatible.");
+      }
+      if (!passkeyClientPromise) {
+        passkeyClientPromise = import("https://esm.sh/@supabase/supabase-js@2.105.0")
+          .then(({ createClient }) => createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+            auth: {
+              experimental: { passkey: true },
+              persistSession: false,
+              autoRefreshToken: false,
+              detectSessionInUrl: false
+            }
+          }))
+          .catch((error) => {
+            passkeyClientPromise = null;
+            throw new Error("No se pudo cargar el módulo de llaves de acceso. Comprueba tu conexión e inténtalo otra vez.");
+          });
+      }
+      return await passkeyClientPromise;
+    }
+    async function syncCurrentSessionToPasskeyClient() {
+      if (!supabaseSession) throw new Error("Inicia sesión con tu cuenta administradora antes de registrar la llave de acceso.");
+      const client = await getPasskeyClient();
+      const { error } = await client.auth.setSession({
+        access_token: supabaseSession.access_token,
+        refresh_token: supabaseSession.refresh_token
+      });
+      if (error) throw error;
+      return client;
+    }
+    async function validAccessToken() {
+      if (!supabaseSession) throw new Error("Tu sesión ha terminado. Vuelve a iniciar sesión.");
+      if ((supabaseSession.expires_at * 1000) > Date.now() + 60000) return supabaseSession.access_token;
+      const response = await fetch(`${supabaseBaseUrl()}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: { "apikey": SUPABASE_PUBLISHABLE_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: supabaseSession.refresh_token }),
+        cache: "no-store"
+      });
+      if (!response.ok) { supabaseSession = null; throw new Error("La sesión expiró. Inicia sesión de nuevo."); }
+      supabaseSession = await response.json();
+      supabaseSession.expires_at = supabaseSession.expires_at || (Math.floor(Date.now() / 1000) + (supabaseSession.expires_in || 3600));
+      return supabaseSession.access_token;
+    }
+    async function fetchCloudRecord(columns = "products,brands,updated_at") {
+      const response = await fetch(`${supabaseBaseUrl()}/rest/v1/${SUPABASE_TABLE}?id=eq.1&select=${columns}`, {
+        headers: supabasePublicHeaders(), cache: "no-store"
+      });
+      if (!response.ok) throw new Error(await readApiError(response));
+      const rows = await response.json();
+      if (!Array.isArray(rows) || !rows.length) throw new Error("No existe el registro inicial del catálogo en la base de datos.");
+      return rows[0];
+    }
+    function applyCloudRecord(record) {
+      products = normalizeProducts(record.products);
+      brands = normalizeBrands(record.brands);
+      cloudLastUpdated = record.updated_at || null;
+      try { localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify({ version: 2, products, brands })); } catch (_) {}
+      renderBrandFilter();
+      renderBrandOptions();
+      populateProductBrandSelect($("productBrand").value);
+      renderCatalog();
+      if (adminOverlay.classList.contains("show")) renderAdminProducts();
+    }
+    async function refreshCloudCatalog(force = false) {
+      if (!CLOUD_SYNC_ENABLED) return;
+      const marker = await fetchCloudRecord("updated_at");
+      const serverTime = Date.parse(marker.updated_at || "");
+      const localTime = Date.parse(cloudLastUpdated || "");
+      if (!force && Number.isFinite(serverTime) && serverTime === localTime) return;
+      const record = await fetchCloudRecord();
+      applyCloudRecord(record);
+    }
+    async function pollCloudCatalog() {
+      try { await refreshCloudCatalog(false); }
+      catch (err) { console.warn("No se pudo actualizar el catálogo desde la nube.", err); }
+    }
+    function startCloudPolling() {
+      if (cloudPollTimer !== null) clearInterval(cloudPollTimer);
+      // Se consulta solo la marca de tiempo cada 30 s; las fotos se descargan únicamente si hay cambios.
+      cloudPollTimer = window.setInterval(pollCloudCatalog, 30000);
+    }
+    async function loadCloudCatalog() {
+      const notice = $("cloudNotice");
+      if (!CLOUD_SYNC_ENABLED) {
+        notice.textContent = "Sincronización pendiente: falta configurar el proyecto Supabase y sus permisos. Los datos actuales todavía son locales a este navegador.";
+        return;
+      }
+      notice.textContent = "Conectando con el catálogo compartido…";
+      try {
+        const record = await fetchCloudRecord();
+        cloudCatalogIsEmpty = !Array.isArray(record.products) || record.products.length === 0;
+        applyCloudRecord(record);
+        notice.textContent = "";
+        startCloudPolling();
+      } catch (err) {
+        notice.textContent = "No se pudo conectar con el catálogo compartido. Revisa la configuración de Supabase.";
+        console.error("Error al cargar el catálogo en la nube:", err);
+      }
+    }
+    async function saveData(statusId = "productStatus") {
+      try {
+        if (!CLOUD_SYNC_ENABLED) throw new Error("La base de datos en la nube todavía no está configurada. Sigue la guía Supabase incluida con este archivo.");
+        const accessToken = await validAccessToken();
+        const updatedAt = new Date().toISOString();
+        const response = await fetch(`${supabaseBaseUrl()}/rest/v1/${SUPABASE_TABLE}?id=eq.1&select=id,updated_at`, {
+          method: "PATCH",
+          headers: {
+            "apikey": SUPABASE_PUBLISHABLE_KEY,
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+          },
+          body: JSON.stringify({ products, brands, updated_at: updatedAt }),
+          cache: "no-store"
+        });
+        if (!response.ok) throw new Error(await readApiError(response));
+        const updatedRows = await response.json();
+        if (!Array.isArray(updatedRows) || updatedRows.length !== 1) {
+          throw new Error("La base de datos no autorizó el cambio. Revisa el UUID del administrador y la política de seguridad RLS.");
+        }
+        cloudLastUpdated = updatedRows[0].updated_at || updatedAt;
+        try { localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify({ version: 2, products, brands })); } catch (_) {}
+        renderBrandOptions();
+        populateProductBrandSelect($("productBrand").value);
+        renderCatalog();
+        renderAdminProducts();
+        cloudCatalogIsEmpty = false;
+        return true;
+      } catch (err) {
+        const message = err && err.message ? err.message : "No se pudieron guardar los cambios en la nube.";
+        setStatus(statusId, message, true);
+        return false;
+      }
+    }
+    function populateProductBrandSelect(selectedValue = "") {
+      const select = $("productBrand");
+      if (!select) return;
+      select.innerHTML = '<option value="">Sin clasificar</option>' + brands.map((brand) => `<option value="${escapeHtml(brand)}">${escapeHtml(brand)}</option>`).join("");
+      if (selectedValue && brands.includes(selectedValue)) select.value = selectedValue;
+      else select.value = "";
+    }
+    function renderBrandFilter() {
+      const select = $("categoryFilter");
+      const menu = $("categoryMenu");
+      if (!select || !menu) return;
+      const hasUnclassified = products.some((product) => !product.brand || !brands.includes(product.brand));
+      const options = [{ value: "all", label: "Todos los refrescos" }];
+      brands.forEach((brand) => options.push({ value: `brand:${brand}`, label: brand }));
+      if (hasUnclassified) options.push({ value: "unclassified", label: "Sin clasificar" });
+      const selectedBrand = activeBrand.startsWith("brand:") ? activeBrand.slice(6) : "";
+      const valid = activeBrand === "all" || (activeBrand === "unclassified" && hasUnclassified) || (activeBrand.startsWith("brand:") && brands.includes(selectedBrand));
+      if (!valid) activeBrand = "all";
+      select.innerHTML = options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join("");
+      select.value = activeBrand;
+      menu.innerHTML = options.map((option) => {
+        const selected = option.value === activeBrand;
+        return `<button class="category-option" type="button" role="option" data-filter-value="${escapeHtml(option.value)}" aria-selected="${selected ? "true" : "false"}">${escapeHtml(option.label)}</button>`;
+      }).join("");
+      const selectedOption = options.find((option) => option.value === activeBrand) || options[0];
+      $("categoryTriggerLabel").textContent = selectedOption.label;
+    }
+    function renderBrandOptions() {
+      const container = $("brandOptions");
+      if (!container) return;
+      $("brandCount").textContent = `${brands.length} ${brands.length === 1 ? "opción" : "opciones"}`;
+      if (!brands.length) {
+        container.innerHTML = '<p class="subtext">No hay opciones definidas. Añade una marca arriba para usar el filtro.</p>';
+        return;
+      }
+      container.innerHTML = brands.map((brand) => `<div class="brand-option"><span class="brand-option-name">${escapeHtml(brand)}</span><div class="brand-option-actions"><button class="small-action" type="button" data-brand-edit="${escapeHtml(brand)}">Editar</button><button class="small-action delete" type="button" data-brand-delete="${escapeHtml(brand)}">Quitar</button></div></div>`).join("");
+    }
+
+    const categoryPicker = $("categoryPicker");
+    const categoryTrigger = $("categoryTrigger");
+    const categoryMenu = $("categoryMenu");
+    let categoryCloseTimer = null;
+    const CATEGORY_CLOSE_DURATION = 180;
+    function closeCategoryPicker(restoreFocus = false) {
+      if (!categoryMenu.hidden && categoryPicker.classList.contains("is-closing")) {
+        categoryTrigger.setAttribute("aria-expanded", "false");
+        if (restoreFocus) categoryTrigger.focus({ preventScroll: true });
+        return;
+      }
+      if (!categoryMenu.hidden) {
+        if (categoryCloseTimer !== null) clearTimeout(categoryCloseTimer);
+        categoryPicker.classList.remove("is-open");
+        categoryPicker.classList.add("is-closing");
+        categoryTrigger.setAttribute("aria-expanded", "false");
+        categoryCloseTimer = window.setTimeout(() => {
+          if (categoryPicker.classList.contains("is-closing")) {
+            categoryMenu.hidden = true;
+            categoryPicker.classList.remove("is-closing");
+          }
+          categoryCloseTimer = null;
+        }, CATEGORY_CLOSE_DURATION);
+      } else {
+        categoryTrigger.setAttribute("aria-expanded", "false");
+      }
+      if (restoreFocus) categoryTrigger.focus({ preventScroll: true });
+    }
+    function openCategoryPicker() {
+      if (categoryCloseTimer !== null) {
+        clearTimeout(categoryCloseTimer);
+        categoryCloseTimer = null;
+      }
+      categoryMenu.hidden = false;
+      categoryPicker.classList.remove("is-closing");
+      categoryTrigger.setAttribute("aria-expanded", "true");
+      categoryPicker.classList.add("is-open");
+      const selected = categoryMenu.querySelector('[aria-selected="true"]');
+      if (selected) selected.focus({ preventScroll: true });
+    }
+    categoryTrigger.addEventListener("click", () => {
+      if (categoryMenu.hidden || categoryPicker.classList.contains("is-closing")) openCategoryPicker();
+      else closeCategoryPicker();
+    });
+    categoryMenu.addEventListener("click", (event) => {
+      const option = event.target.closest("[data-filter-value]");
+      if (!option) return;
+      activeBrand = option.dataset.filterValue || "all";
+      $("categoryFilter").value = activeBrand;
+      renderCatalog();
+      closeCategoryPicker(true);
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (!categoryMenu.hidden && !categoryPicker.contains(event.target)) closeCategoryPicker();
+    });
+    $("brandForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const newName = $("newBrandName").value.trim();
+      if (!newName) { setStatus("brandStatus", "Escribe el nombre de una marca o categoría.", true); return; }
+      if (brands.some((brand) => brand.toLocaleLowerCase() === newName.toLocaleLowerCase())) {
+        setStatus("brandStatus", "Esa opción ya existe.", true); return;
+      }
+      const previous = brands.slice();
+      brands = [...brands, newName];
+      if (!(await saveData("brandStatus"))) { brands = previous; return; }
+      $("newBrandName").value = "";
+      setStatus("brandStatus", `“${newName}” añadida al filtro.`, false);
+    });
+    $("brandOptions").addEventListener("click", async (event) => {
+      const editButton = event.target.closest("[data-brand-edit]");
+      const deleteButton = event.target.closest("[data-brand-delete]");
+      if (editButton) {
+        const oldName = editButton.dataset.brandEdit;
+        const entered = window.prompt("Editar nombre de la opción:", oldName);
+        if (entered === null) return;
+        const newName = entered.trim();
+        if (!newName) { setStatus("brandStatus", "El nombre no puede quedar vacío.", true); return; }
+        if (newName !== oldName && brands.some((brand) => brand.toLocaleLowerCase() === newName.toLocaleLowerCase())) {
+          setStatus("brandStatus", "Ya existe una opción con ese nombre.", true); return;
+        }
+        const oldBrands = brands.slice();
+        const oldProducts = products;
+        brands = brands.map((brand) => brand === oldName ? newName : brand);
+        products = products.map((product) => product.brand === oldName ? { ...product, brand: newName } : product);
+        if (!(await saveData("brandStatus"))) {
+          brands = oldBrands; products = oldProducts;
+          return;
+        }
+        populateProductBrandSelect(newName);
+        setStatus("brandStatus", `Opción actualizada: ${newName}.`, false);
+      }
+      if (deleteButton) {
+        const name = deleteButton.dataset.brandDelete;
+        if (!window.confirm(`¿Quitar “${name}” de las opciones del filtro? Los productos asociados quedarán como “Sin clasificar”.`)) return;
+        const oldBrands = brands.slice();
+        const oldProducts = products;
+        brands = brands.filter((brand) => brand !== name);
+        products = products.map((product) => product.brand === name ? { ...product, brand: "" } : product);
+        if (!(await saveData("brandStatus"))) {
+          brands = oldBrands; products = oldProducts;
+          return;
+        }
+        populateProductBrandSelect();
+        setStatus("brandStatus", `“${name}” eliminada.`, false);
+      }
+    });
+
+    function parsePrice(value) {
+      const normalized = String(value).trim().replace(/\s/g, "").replace(",", ".");
+      if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return NaN;
+      const n = Number(normalized);
+      return Number.isFinite(n) && n >= 0 ? n : NaN;
+    }
+    function money(value) {
+      return "Bs. " + Number(value).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+    }
+    function fallbackArt() {
+      return '<div class="visual-placeholder" aria-hidden="true"><span class="placeholder-glow"></span><span class="can"></span></div>';
+    }
+    function imageMarkup(src, alt) {
+      if (typeof src !== "string") return fallbackArt();
+      const dataImage = /^data:image\/(?:webp|jpeg|png);base64,/i.test(src) && src.length <= 2000000;
+      const storagePrefix = `${SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/public/refresco-images/`;
+      const cloudImage = CLOUD_SYNC_ENABLED && src.startsWith(storagePrefix) && src.length <= 2000;
+      if (!dataImage && !cloudImage) return fallbackArt();
+      const safeSrc = escapeHtml(src);
+      const safeAlt = escapeHtml(alt);
+      return `${fallbackArt()}<img src="${safeSrc}" alt="${safeAlt}" loading="lazy" decoding="async" fetchpriority="low" onerror="this.remove()">`;
+    }
+    function encodeStoragePath(path) {
+      return path.split("/").map((part) => encodeURIComponent(part)).join("/");
+    }
+    function storagePathFromPublicUrl(url) {
+      const prefix = `${supabaseBaseUrl()}/storage/v1/object/public/refresco-images/`;
+      return typeof url === "string" && url.startsWith(prefix) ? url.slice(prefix.length) : "";
+    }
+    async function uploadProductImage(productId, dataUrl) {
+      const accessToken = await validAccessToken();
+      const blob = await (await fetch(dataUrl)).blob();
+      const extension = blob.type === "image/webp" ? "webp" : "jpg";
+      const safeId = String(productId).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 70) || "producto";
+      const objectPath = `products/${safeId}_${Date.now().toString(36)}.${extension}`;
+      const encodedPath = encodeStoragePath(objectPath);
+      const response = await fetch(`${supabaseBaseUrl()}/storage/v1/object/refresco-images/${encodedPath}`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_PUBLISHABLE_KEY,
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": blob.type || "image/jpeg",
+          "x-upsert": "false"
+        },
+        body: blob,
+        cache: "no-store"
+      });
+      if (!response.ok) throw new Error(await readApiError(response));
+      return `${supabaseBaseUrl()}/storage/v1/object/public/refresco-images/${encodedPath}`;
+    }
+    async function deleteCloudImage(publicUrl) {
+      const objectPath = storagePathFromPublicUrl(publicUrl);
+      if (!objectPath || !supabaseSession) return;
+      try {
+        const accessToken = await validAccessToken();
+        await fetch(`${supabaseBaseUrl()}/storage/v1/object/refresco-images/${encodeStoragePath(objectPath)}`, {
+          method: "DELETE",
+          headers: { "apikey": SUPABASE_PUBLISHABLE_KEY, "Authorization": `Bearer ${accessToken}` },
+          cache: "no-store"
+        });
+      } catch (err) { console.warn("No se pudo borrar una imagen antigua del almacenamiento.", err); }
+    }
+    async function moveEmbeddedImagesToCloud(list) {
+      const converted = [];
+      for (const product of list) {
+        let image = product.image || "";
+        if (/^data:image\//i.test(image)) image = await uploadProductImage(product.id, image);
+        converted.push({ ...product, image });
+      }
+      return converted;
+    }
+    function renderCatalog() {
+      renderBrandFilter();
+      if (!products.length) {
+        catalogEl.innerHTML = `<div class="empty"><div class="empty-symbol" aria-hidden="true"><svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M8 3h8l1 4-1.2 13H8.2L7 7l1-4Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.5 8h9M9 4h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9 12h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div><h2>Catálogo en preparación</h2><p>Pronto encontrarás aquí los refrescos disponibles.</p></div>`;
+        return;
+      }
+      let visibleProducts = products;
+      if (activeBrand === "unclassified") visibleProducts = products.filter((product) => !product.brand || !brands.includes(product.brand));
+      else if (activeBrand.startsWith("brand:")) {
+        const selected = activeBrand.slice(6);
+        visibleProducts = products.filter((product) => product.brand === selected);
+      }
+      if (!visibleProducts.length) {
+        catalogEl.innerHTML = '<div class="empty"><h2>No hay refrescos de esta opción</h2><p>Prueba otra marca en el selector o selecciona “Todos los refrescos”.</p></div>';
+        return;
+      }
+      catalogEl.innerHTML = visibleProducts.map((p, index) => {
+        const name = escapeHtml(p.name);
+        const price = money(p.price);
+        const size = p.size ? escapeHtml(p.size) : "";
+        const sizeMessage = p.size ? ` (${p.size})` : "";
+        const message = `Hola, quiero solicitar: ${p.name}${sizeMessage} — ${price}.`;
+        const waLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+        return `<article class="product"><div class="product-visual">${imageMarkup(p.image || "", p.name)}</div><div class="product-info"><h2 class="product-name">${name}</h2>${size ? `<p class="product-size">${size}</p>` : ""}<div class="product-bottom"><div class="price-wrap"><span class="price-caption">Precio</span><div class="price">${price}</div></div><a class="request" href="${waLink}" target="_self" aria-label="Solicitar ${name} por WhatsApp"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11.7a8.1 8.1 0 0 1-11.9 7.1L4 20l1.2-4A8.1 8.1 0 1 1 20 11.7Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 8.4c.2-.4.4-.4.7-.4h.4c.2 0 .3.1.4.4l.7 1.6c.1.2.1.4-.1.6l-.5.6c-.2.2-.2.4 0 .6.5.8 1.1 1.4 2 1.9.2.1.4.1.6-.1l.7-.8c.2-.2.4-.2.6-.1l1.5.7c.2.1.3.3.3.5 0 .4-.2 1.1-.7 1.4-.5.4-1.1.5-1.8.3-1.2-.3-2.5-1-3.6-2.1-1.1-1.1-1.9-2.4-2.1-3.4-.2-.7 0-1.3.3-1.7Z" fill="currentColor"/></svg>Solicitar</a></div></div></article>`;
+      }).join("");
+    }
+    function renderAdminProducts() {
+      $("productCount").textContent = `${products.length} ${products.length === 1 ? "producto" : "productos"}`;
+      if (!products.length) {
+        $("adminProducts").innerHTML = '<p class="subtext">Todavía no has añadido refrescos.</p>';
+        return;
+      }
+      $("adminProducts").innerHTML = products.map((p) => `<div class="admin-product"><div class="admin-thumb">${imageMarkup(p.image || "", p.name)}</div><div><div class="admin-product-name">${escapeHtml(p.name)}</div><div class="admin-product-price">${money(p.price)}${p.size ? " · " + escapeHtml(p.size) : ""}</div></div><div class="row-actions"><button class="small-action" type="button" data-edit="${escapeHtml(p.id)}">Editar</button><button class="small-action delete" type="button" data-delete="${escapeHtml(p.id)}">Eliminar</button></div></div>`).join("");
+    }
+    function showOverlay(el) {
+      const alreadyOpen = loginOverlay.classList.contains("show") || adminOverlay.classList.contains("show");
+      if (!alreadyOpen) lastFocusedElement = document.activeElement;
+      el.classList.add("show");
+      el.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+      $("pageMain").inert = true;
+      adminAccess.inert = true;
+      const focusTarget = el.querySelector(".icon-button") || el.querySelector("input, button");
+      if (focusTarget) focusTarget.focus({ preventScroll: true });
+    }
+    function hideOverlay(el) {
+      el.classList.remove("show");
+      el.setAttribute("aria-hidden", "true");
+      const anotherOpen = loginOverlay.classList.contains("show") || adminOverlay.classList.contains("show");
+      if (!anotherOpen) {
+        document.body.style.overflow = "";
+        $("pageMain").inert = false;
+        adminAccess.inert = false;
+        const target = lastFocusedElement;
+        lastFocusedElement = null;
+        if (target && target.isConnected && typeof target.focus === "function") target.focus({ preventScroll: true });
+      }
+    }
+    function openLogin() {
+      setStatus("passkeyLoginStatus", "", false);
+      showOverlay(loginOverlay);
+    }
+    function setStatus(id, message, error = false) {
+      const el = $(id); el.textContent = message; el.style.color = error ? "#ff8da0" : "#7cbaff";
+    }
+    $("passkeySignIn").addEventListener("click", async () => {
+      const button = $("passkeySignIn");
+      button.disabled = true;
+      setStatus("passkeyLoginStatus", "Esperando la confirmación de tu dispositivo…", false);
+      try {
+        const client = await getPasskeyClient();
+        const { data, error } = await client.auth.signInWithPasskey();
+        if (error) throw error;
+        const session = data && data.session;
+        if (!session || !session.user || session.user.id !== SUPABASE_ADMIN_USER_ID) {
+          await client.auth.signOut({ scope: "local" }).catch(() => {});
+          throw new Error("Esta llave no pertenece a la cuenta administradora autorizada.");
+        }
+        supabaseSession = session;
+        setStatus("passkeyLoginStatus", "Acceso verificado.", false);
+        hideOverlay(loginOverlay);
+        showOverlay(adminOverlay);
+        renderAdminProducts();
+        setStatus("productStatus", "Sesión segura iniciada con llave de acceso.", false);
+        if (cloudCatalogIsEmpty && deviceDataSnapshot.products.length > 0) {
+          const importLocal = window.confirm("La base de datos compartida está vacía, pero este navegador tiene productos guardados localmente. ¿Quieres copiar esos productos y marcas a la nube para que estén disponibles en todos los teléfonos?");
+          if (importLocal) {
+            try {
+              products = await moveEmbeddedImagesToCloud(deviceDataSnapshot.products);
+              brands = deviceDataSnapshot.brands.slice();
+              if (await saveData("productStatus")) setStatus("productStatus", "Catálogo local copiado a la nube.", false);
+            } catch (migrationError) {
+              setStatus("productStatus", migrationError.message || "No se pudo copiar el catálogo local.", true);
+            }
+          }
+        }
+      } catch (err) {
+        setStatus("passkeyLoginStatus", err.message || "No se pudo verificar la llave de acceso.", true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    $("registerPasskey").addEventListener("click", async () => {
+      const button = $("registerPasskey");
+      button.disabled = true;
+      setStatus("passkeyRegisterStatus", "Preparando el registro seguro…", false);
+      try {
+        const client = await syncCurrentSessionToPasskeyClient();
+        const { data, error } = await client.auth.registerPasskey();
+        if (error) throw error;
+        setStatus("passkeyRegisterStatus", "¡Llave de acceso registrada! La próxima vez podrás entrar con la huella, el rostro o el PIN de este dispositivo.", false);
+      } catch (err) {
+        setStatus("passkeyRegisterStatus", err.message || "No se pudo registrar la llave de acceso.", true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    async function logoutAdmin() {
+      const session = supabaseSession;
+      supabaseSession = null;
+      if (passkeyClientPromise) {
+        try {
+          const client = await passkeyClientPromise;
+          await client.auth.signOut({ scope: "local" });
+        } catch (_) {}
+      }
+      if (session && CLOUD_SYNC_ENABLED) {
+        try {
+          await fetch(`${supabaseBaseUrl()}/auth/v1/logout`, {
+            method: "POST",
+            headers: { "apikey": SUPABASE_PUBLISHABLE_KEY, "Authorization": `Bearer ${session.access_token}` },
+            cache: "no-store"
+          });
+        } catch (_) {}
+      }
+      hideOverlay(adminOverlay);
+      clearProductForm();
+      setStatus("productStatus", "Sesión cerrada.", false);
+    }
+
+    function updateCustomSizeField() {
+      const isCustom = $("productSize").value === "__otro__";
+      $("customSizeWrap").classList.toggle("hidden", !isCustom);
+      $("productSizeCustom").required = isCustom;
+      if (!isCustom) $("productSizeCustom").value = "";
+    }
+    $("productSize").addEventListener("change", updateCustomSizeField);
+    function clearProductForm() {
+      editingId = null;
+      $("productForm").reset();
+      populateProductBrandSelect();
+      updateCustomSizeField();
+      $("saveProduct").textContent = "Añadir refresco";
+      $("cancelEdit").classList.add("hidden");
+      setStatus("productStatus", "", false);
+    }
+    $("productForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const name = $("productName").value.trim();
+      const price = parsePrice($("productPrice").value);
+      const brand = $("productBrand").value;
+      const selectedSize = $("productSize").value;
+      const size = selectedSize === "__otro__" ? $("productSizeCustom").value.trim() : selectedSize;
+      if (!name) { setStatus("productStatus", "Escribe el nombre del refresco.", true); return; }
+      if (brand && !brands.includes(brand)) { setStatus("productStatus", "Selecciona una marca válida o deja el producto sin clasificar.", true); return; }
+      if (!selectedSize || !size) { setStatus("productStatus", "Selecciona o escribe el tamaño del envase.", true); return; }
+      if (!Number.isFinite(price)) { setStatus("productStatus", "Introduce un precio válido en bolívares, por ejemplo 85,00.", true); return; }
+      const current = editingId ? products.find((p) => p.id === editingId) : null;
+      const file = $("productImage").files[0];
+      let image = current ? (current.image || "") : "";
+      const saveButton = $("saveProduct"); saveButton.disabled = true; saveButton.textContent = "Guardando…";
+      try {
+        const productId = current ? current.id : ("p_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7));
+        if (file) image = await compressImage(file);
+        if (file && /^data:image\//i.test(image)) image = await uploadProductImage(productId, image);
+        const item = { id: productId, name, brand, price, size, image };
+        const oldImage = current ? (current.image || "") : "";
+        const oldProducts = products.slice();
+        if (current) products = products.map((p) => p.id === current.id ? item : p); else products = [...products, item];
+        if (await saveData("productStatus")) {
+          clearProductForm();
+          if (oldImage && oldImage !== item.image) void deleteCloudImage(oldImage);
+          setStatus("productStatus", current ? "Refresco actualizado." : "Refresco añadido.", false);
+        } else products = oldProducts;
+      } catch (err) { setStatus("productStatus", err.message || "No se pudo procesar la imagen.", true); }
+      finally { saveButton.disabled = false; saveButton.textContent = editingId ? "Guardar cambios" : "Añadir refresco"; }
+    });
+    function compressImage(file) {
+      return new Promise((resolve, reject) => {
+        if (!file.type.startsWith("image/")) { reject(new Error("Selecciona un archivo de imagen.")); return; }
+        if (file.size > 12 * 1024 * 1024) { reject(new Error("La foto es demasiado grande. Selecciona una de menos de 12 MB.")); return; }
+        const objectUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const maxSide = 900; const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+            const canvas = document.createElement("canvas"); canvas.width = Math.max(1, Math.round(img.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+            const ctx = canvas.getContext("2d", { alpha: false });
+            if (!ctx) throw new Error("No se pudo procesar la imagen.");
+            ctx.fillStyle = "#102039"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            let data = canvas.toDataURL("image/webp", .79);
+            if (data.length > 1_300_000) data = canvas.toDataURL("image/jpeg", .68);
+            if (data.length > 1_800_000) throw new Error("La foto comprimida todavía ocupa demasiado. Prueba con otra imagen más pequeña.");
+            URL.revokeObjectURL(objectUrl); resolve(data);
+          } catch (err) { URL.revokeObjectURL(objectUrl); reject(err); }
+        };
+        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("No se pudo abrir esa imagen.")); };
+        img.src = objectUrl;
+      });
+    }
+    $("adminProducts").addEventListener("click", async (event) => {
+      const editButton = event.target.closest("[data-edit]");
+      const deleteButton = event.target.closest("[data-delete]");
+      if (editButton) {
+        const p = products.find((item) => item.id === editButton.dataset.edit); if (!p) return;
+        editingId = p.id; $("productName").value = p.name; $("productPrice").value = String(p.price).replace(".", ","); $("productImage").value = "";
+        populateProductBrandSelect(p.brand || "");
+        const sizeOptions = Array.from($("productSize").options).map((option) => option.value);
+        if (p.size && sizeOptions.includes(p.size)) { $("productSize").value = p.size; $("productSizeCustom").value = ""; }
+        else if (p.size) { $("productSize").value = "__otro__"; $("productSizeCustom").value = p.size; }
+        else { $("productSize").value = ""; $("productSizeCustom").value = ""; }
+        updateCustomSizeField();
+        $("saveProduct").textContent = "Guardar cambios"; $("cancelEdit").classList.remove("hidden"); setStatus("productStatus", "Editando: " + p.name, false); $("productName").focus(); window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      if (deleteButton) {
+        const p = products.find((item) => item.id === deleteButton.dataset.delete); if (!p) return;
+        if (!window.confirm(`¿Eliminar “${p.name}” del catálogo?`)) return;
+        const before = products; products = products.filter((item) => item.id !== p.id);
+        if (await saveData("productStatus")) {
+          if (editingId === p.id) clearProductForm();
+          if (p.image) void deleteCloudImage(p.image);
+          setStatus("productStatus", "Producto eliminado.", false);
+        } else products = before;
+      }
+    });
+    $("cancelEdit").addEventListener("click", clearProductForm);
+    $("closeLogin").addEventListener("click", () => hideOverlay(loginOverlay));
+    $("cancelLogin").addEventListener("click", () => hideOverlay(loginOverlay));
+    $("closeAdmin").addEventListener("click", logoutAdmin);
+    $("logoutAdmin").addEventListener("click", logoutAdmin);
+    [loginOverlay, adminOverlay].forEach((overlay) => overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) {
+        if (overlay === adminOverlay) logoutAdmin();
+        else hideOverlay(overlay);
+      }
+    }));
+
+    // Acceso oculto: mantener pulsado el punto durante 6,5 segundos.
+    const adminAccess = $("adminAccess");
+    const ADMIN_HOLD_DURATION = 6500;
+    let adminHoldTimer = null;
+    function startAdminHold(event) {
+      if (event.type === "pointerdown" && event.button !== undefined && event.button !== 0) return;
+      if (loginOverlay.classList.contains("show") || adminOverlay.classList.contains("show")) return;
+      if (event.cancelable) event.preventDefault();
+      cancelAdminHold();
+      adminAccess.classList.add("holding");
+      adminHoldTimer = setTimeout(() => {
+        adminHoldTimer = null;
+        adminAccess.classList.remove("holding");
+        openLogin();
+      }, ADMIN_HOLD_DURATION);
+    }
+    function cancelAdminHold() {
+      if (adminHoldTimer !== null) clearTimeout(adminHoldTimer);
+      adminHoldTimer = null;
+      adminAccess.classList.remove("holding");
+    }
+    adminAccess.addEventListener("pointerdown", startAdminHold);
+    ["pointerup", "pointercancel", "pointerleave"].forEach((name) => adminAccess.addEventListener(name, cancelAdminHold));
+    adminAccess.addEventListener("contextmenu", (event) => event.preventDefault());
+    adminAccess.addEventListener("keydown", (event) => {
+      if ((event.key === " " || event.key === "Enter") && !event.repeat) startAdminHold(event);
+    });
+    adminAccess.addEventListener("keyup", (event) => {
+      if (event.key === " " || event.key === "Enter") cancelAdminHold();
+    });
+    document.addEventListener("keydown", (event) => {
+      const activeOverlay = adminOverlay.classList.contains("show") ? adminOverlay : loginOverlay.classList.contains("show") ? loginOverlay : null;
+      if (event.key === "Escape" && !categoryMenu.hidden && !activeOverlay) {
+        event.preventDefault();
+        closeCategoryPicker(true);
+        return;
+      }
+      if (!categoryMenu.hidden && ["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key) && categoryMenu.contains(document.activeElement)) {
+        const options = Array.from(categoryMenu.querySelectorAll(".category-option"));
+        const currentIndex = options.indexOf(document.activeElement);
+        let nextIndex = currentIndex;
+        if (event.key === "ArrowDown") nextIndex = (currentIndex + 1) % options.length;
+        if (event.key === "ArrowUp") nextIndex = (currentIndex - 1 + options.length) % options.length;
+        if (event.key === "Home") nextIndex = 0;
+        if (event.key === "End") nextIndex = options.length - 1;
+        if (options[nextIndex]) { event.preventDefault(); options[nextIndex].focus(); }
+      }
+      if (event.key === "Escape" && activeOverlay) {
+        event.preventDefault();
+        if (activeOverlay === adminOverlay) logoutAdmin();
+        else hideOverlay(loginOverlay);
+        return;
+      }
+      if (event.key === "Tab" && activeOverlay) {
+        const focusable = Array.from(activeOverlay.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'))
+          .filter((element) => element.getClientRects().length && !element.closest(".hidden"));
+        if (!focusable.length) { event.preventDefault(); return; }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !activeOverlay.contains(document.activeElement))) {
+          event.preventDefault(); last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !activeOverlay.contains(document.activeElement))) {
+          event.preventDefault(); first.focus();
+        }
+      }
+    });
+    window.addEventListener("blur", cancelAdminHold);
+    document.addEventListener("visibilitychange", () => {
+      const pageHidden = document.hidden;
+      document.body.classList.toggle("is-page-hidden", pageHidden);
+      if (pageHidden) {
+        cancelAdminHold();
+        if (!categoryMenu.hidden) closeCategoryPicker();
+      }
+      updateHeadingRayLoop();
+      if (!pageHidden) pollCloudCatalog();
+    });
+    const headingMotionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (typeof headingMotionPreference.addEventListener === "function") {
+      headingMotionPreference.addEventListener("change", updateHeadingRayLoop);
+    }
+    document.body.classList.toggle("is-page-hidden", document.hidden);
+
+
+    populateProductBrandSelect();
+    renderBrandOptions();
+    updateCustomSizeField();
+    renderCatalog();
+    initParticleBackground();
+    updateHeadingRayLoop();
+    void loadCloudCatalog();
+  </script>
+</body>
+</html>
