@@ -554,15 +554,17 @@
         <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><rect x="4.5" y="10" width="15" height="11" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.2" fill="currentColor"/></svg>
       </div>
       <div class="dialog-head">
-        <div><p class="dialog-kicker">Acceso privado</p><h2 id="loginTitle">Administración</h2><p class="subtext">Desbloquea el panel con la huella, el rostro o el método de seguridad de tu dispositivo.</p></div>
+        <div><p class="dialog-kicker">Acceso privado</p><h2 id="loginTitle">Administración</h2><p class="subtext">Entra con tu cuenta de administrador para gestionar el catálogo.</p></div>
         <button class="icon-button" id="closeLogin" type="button" aria-label="Cerrar">×</button>
       </div>
-      <div class="passkey-login-wrap">
-        <button class="primary" id="passkeySignIn" type="button">Desbloquear con huella</button>
-        <p class="passkey-note">No se solicita Gmail ni contraseña. Tu dispositivo verifica tu identidad; la página no recibe ni guarda tu huella. Debes tener una llave de acceso registrada para esta cuenta administradora.</p>
+      <form class="passkey-login-wrap" id="adminLoginForm" novalidate>
+        <div class="field"><label for="adminEmail">Correo del administrador</label><input id="adminEmail" type="email" name="email" autocomplete="username" inputmode="email" placeholder="correo@ejemplo.com" required></div>
+        <div class="field"><label for="adminPassword">Contraseña</label><input id="adminPassword" type="password" name="password" autocomplete="current-password" placeholder="Tu contraseña" required></div>
+        <button class="primary" id="adminSignIn" type="submit">Entrar al panel</button>
+        <p class="passkey-note">Acceso privado: solo las cuentas administradoras autorizadas pueden ver y modificar el catálogo. La sesión se cierra al cerrar la pestaña.</p>
         <p class="status" id="passkeyLoginStatus" role="status" aria-live="polite"></p>
         <button class="secondary" id="cancelLogin" type="button">Cancelar</button>
-      </div>
+      </form>
     </div>
   </section>
 
@@ -575,11 +577,10 @@
           <button class="icon-button" id="closeAdmin" type="button" aria-label="Cerrar administración">×</button>
         </div>
       </div>
-      <section class="passkey-settings" aria-labelledby="passkeySettingsTitle">
-        <h3 id="passkeySettingsTitle">Acceso biométrico de este dispositivo</h3>
-        <p>Después de entrar con tu llave de acceso administradora, puedes registrar otra llave para este u otro dispositivo. El teléfono verifica la huella, el rostro o el PIN; la página nunca recibe tu información biométrica.</p>
-        <button class="secondary" id="registerPasskey" type="button">Activar huella / llave de acceso</button>
-        <p class="status" id="passkeyRegisterStatus" role="status"></p>
+      <section class="passkey-settings" aria-labelledby="adminSessionTitle">
+        <h3 id="adminSessionTitle">Sesión de administrador</h3>
+        <p>Solo las cuentas con permiso de administrador pueden añadir, editar o eliminar refrescos. Cada cambio se guarda en la base de datos compartida y aparece en todos los teléfonos.</p>
+        <p class="status" id="adminSessionStatus" role="status" aria-live="polite"></p>
       </section>
       <form id="productForm">
         <div class="form-grid">
@@ -627,18 +628,15 @@
     const LEGACY_PRODUCTS_KEY = "ventaRefrescos_catalogo_v1";
     const LEGACY_BRANDS_KEY = "ventaRefrescos_marcas_v1";
     const DATA_STORAGE_KEY = "ventaRefrescos_datos_v2";
-    // Configuración pública de Supabase. La clave publishable puede estar en el navegador;
-    // NUNCA pegues aquí una clave secret/service_role.
-    const SUPABASE_URL = "https://TU-PROYECTO.supabase.co";
-    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_TU_CLAVE";
-    const SUPABASE_ADMIN_USER_ID = "UUID_DEL_USUARIO_ADMIN";
+    // Configuración pública inyectada por el servidor desde las variables de entorno
+    // SUPABASE_URL y SUPABASE_ANON_KEY. Nunca se usa aquí la clave secret/service_role.
+    const APP_CONFIG = Object.assign({ supabaseUrl: "", supabaseAnonKey: "", whatsappNumber: "" }, window.__APP_CONFIG__ || {});
+    const SUPABASE_URL = String(APP_CONFIG.supabaseUrl || "").trim().replace(/\/+$/, "");
+    const SUPABASE_ANON_KEY = String(APP_CONFIG.supabaseAnonKey || "").trim();
     const SUPABASE_TABLE = "refresco_catalog";
-    const CLOUD_SYNC_ENABLED = /^https:\/\//i.test(SUPABASE_URL) &&
-      !SUPABASE_URL.includes("TU-PROYECTO") &&
-      SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_") &&
-      !SUPABASE_PUBLISHABLE_KEY.includes("TU_CLAVE") &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(SUPABASE_ADMIN_USER_ID);
-    const WHATSAPP_NUMBER = "584123168479"; // Número venezolano 04123168479, en formato internacional para WhatsApp.
+    const CLOUD_SYNC_ENABLED = /^https:\/\/[a-z0-9-]+\.supabase\.(co|in)$/i.test(SUPABASE_URL) && SUPABASE_ANON_KEY.length >= 24;
+    // Número venezolano 04123168479, en formato internacional para WhatsApp.
+    const WHATSAPP_NUMBER = String(APP_CONFIG.whatsappNumber || "").replace(/\D/g, "") || "584123168479";
 
     const $ = (id) => document.getElementById(id);
 
@@ -908,7 +906,6 @@
     let cloudCatalogIsEmpty = false;
     let cloudLastUpdated = null;
     let supabaseSession = null; // Solo memoria de esta pestaña; no se guarda la sesión en localStorage.
-    let passkeyClientPromise = null;
     let cloudPollTimer = null;
     let activeBrand = "all";
     let editingId = null;
@@ -971,8 +968,8 @@
     }
     function supabaseBaseUrl() { return SUPABASE_URL.replace(/\/+$/, ""); }
     function supabasePublicHeaders() {
-      // La Publishable key va en apikey; Authorization queda reservado al JWT del usuario autenticado.
-      return { "apikey": SUPABASE_PUBLISHABLE_KEY };
+      // Lectura pública del catálogo: clave pública en apikey y en Authorization.
+      return { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` };
     }
     async function readApiError(response) {
       let detail = "";
@@ -982,53 +979,72 @@
       } catch (_) {}
       return detail || `Error del servicio (${response.status}).`;
     }
-    async function getPasskeyClient() {
-      if (!CLOUD_SYNC_ENABLED) {
-        throw new Error("El acceso por huella todavía no está activado. Falta conectar el servicio seguro y registrar la primera llave administradora.");
-      }
-      if (!window.isSecureContext || !navigator.credentials || !window.PublicKeyCredential) {
-        throw new Error("Este navegador no permite llaves de acceso aquí. Abre la página publicada mediante HTTPS en un navegador compatible.");
-      }
-      if (!passkeyClientPromise) {
-        passkeyClientPromise = import("https://esm.sh/@supabase/supabase-js@2.105.0")
-          .then(({ createClient }) => createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-            auth: {
-              experimental: { passkey: true },
-              persistSession: false,
-              autoRefreshToken: false,
-              detectSessionInUrl: false
-            }
-          }))
-          .catch((error) => {
-            passkeyClientPromise = null;
-            throw new Error("No se pudo cargar el módulo de llaves de acceso. Comprueba tu conexión e inténtalo otra vez.");
-          });
-      }
-      return await passkeyClientPromise;
-    }
-    async function syncCurrentSessionToPasskeyClient() {
-      if (!supabaseSession) throw new Error("Inicia sesión con tu cuenta administradora antes de registrar la llave de acceso.");
-      const client = await getPasskeyClient();
-      const { error } = await client.auth.setSession({
-        access_token: supabaseSession.access_token,
-        refresh_token: supabaseSession.refresh_token
+    // ── Autenticación real de administrador (Supabase Auth) ────────────────────
+    // La sesión vive solo en la memoria de esta pestaña: al cerrarla se cierra la sesión.
+    async function authFetch(path, options = {}) {
+      const response = await fetch(`${supabaseBaseUrl()}/auth/v1/${path}`, {
+        ...options,
+        cache: "no-store",
+        headers: { "apikey": SUPABASE_ANON_KEY, "Content-Type": "application/json", ...(options.headers || {}) }
       });
-      if (error) throw error;
-      return client;
+      let payload = null;
+      try { payload = await response.json(); } catch (_) {}
+      if (!response.ok) {
+        const detail = payload && (payload.msg || payload.error_description || payload.message || payload.error);
+        throw new Error(detail || `El servicio de acceso respondió con un error (${response.status}).`);
+      }
+      return payload;
+    }
+    function normalizeSession(payload) {
+      if (!payload || !payload.access_token) return null;
+      const expiresAt = Number(payload.expires_at) || (Math.floor(Date.now() / 1000) + (Number(payload.expires_in) || 3600));
+      return { ...payload, expires_at: expiresAt };
+    }
+    async function currentUserIsAdmin(accessToken) {
+      try {
+        const response = await fetch(`${supabaseBaseUrl()}/rest/v1/rpc/is_admin`, {
+          method: "POST",
+          headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: "{}",
+          cache: "no-store"
+        });
+        if (!response.ok) return false;
+        return (await response.json()) === true;
+      } catch (_) { return false; }
+    }
+    async function signInAdmin(email, password) {
+      if (!CLOUD_SYNC_ENABLED) {
+        throw new Error("Falta conectar la base de datos Supabase. Añade SUPABASE_URL y SUPABASE_ANON_KEY y vuelve a cargar la página.");
+      }
+      const payload = await authFetch("token?grant_type=password", {
+        method: "POST",
+        body: JSON.stringify({ email, password })
+      });
+      const session = normalizeSession(payload);
+      if (!session) throw new Error("El servicio de acceso no devolvió una sesión válida.");
+      if (!(await currentUserIsAdmin(session.access_token))) {
+        await authFetch("logout", { method: "POST", headers: { "Authorization": `Bearer ${session.access_token}` } }).catch(() => {});
+        throw new Error("Esa cuenta no tiene permisos de administrador.");
+      }
+      supabaseSession = session;
+      return session;
     }
     async function validAccessToken() {
       if (!supabaseSession) throw new Error("Tu sesión ha terminado. Vuelve a iniciar sesión.");
       if ((supabaseSession.expires_at * 1000) > Date.now() + 60000) return supabaseSession.access_token;
-      const response = await fetch(`${supabaseBaseUrl()}/auth/v1/token?grant_type=refresh_token`, {
-        method: "POST",
-        headers: { "apikey": SUPABASE_PUBLISHABLE_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: supabaseSession.refresh_token }),
-        cache: "no-store"
-      });
-      if (!response.ok) { supabaseSession = null; throw new Error("La sesión expiró. Inicia sesión de nuevo."); }
-      supabaseSession = await response.json();
-      supabaseSession.expires_at = supabaseSession.expires_at || (Math.floor(Date.now() / 1000) + (supabaseSession.expires_in || 3600));
-      return supabaseSession.access_token;
+      try {
+        const payload = await authFetch("token?grant_type=refresh_token", {
+          method: "POST",
+          body: JSON.stringify({ refresh_token: supabaseSession.refresh_token })
+        });
+        const refreshed = normalizeSession(payload);
+        if (!refreshed) throw new Error("sin sesión");
+        supabaseSession = refreshed;
+        return supabaseSession.access_token;
+      } catch (err) {
+        supabaseSession = null;
+        throw new Error("La sesión expiró. Inicia sesión de nuevo.");
+      }
     }
     async function fetchCloudRecord(columns = "products,brands,updated_at") {
       const response = await fetch(`${supabaseBaseUrl()}/rest/v1/${SUPABASE_TABLE}?id=eq.1&select=${columns}`, {
@@ -1065,13 +1081,13 @@
     }
     function startCloudPolling() {
       if (cloudPollTimer !== null) clearInterval(cloudPollTimer);
-      // Se consulta solo la marca de tiempo cada 30 s; las fotos se descargan únicamente si hay cambios.
-      cloudPollTimer = window.setInterval(pollCloudCatalog, 30000);
+      // Se consulta solo la marca de tiempo cada 8 s; los productos se descargan únicamente si hay cambios.
+      cloudPollTimer = window.setInterval(pollCloudCatalog, 8000);
     }
     async function loadCloudCatalog() {
       const notice = $("cloudNotice");
       if (!CLOUD_SYNC_ENABLED) {
-        notice.textContent = "Sincronización pendiente: falta configurar el proyecto Supabase y sus permisos. Los datos actuales todavía son locales a este navegador.";
+        notice.textContent = "Catálogo en modo local: falta conectar la base de datos compartida.";
         return;
       }
       notice.textContent = "Conectando con el catálogo compartido…";
@@ -1082,7 +1098,8 @@
         notice.textContent = "";
         startCloudPolling();
       } catch (err) {
-        notice.textContent = "No se pudo conectar con el catálogo compartido. Revisa la configuración de Supabase.";
+        const detail = err && err.message ? err.message : "";
+        notice.textContent = "No se pudo conectar con el catálogo compartido." + (detail ? " " + detail : " Revisa la configuración de Supabase.");
         console.error("Error al cargar el catálogo en la nube:", err);
       }
     }
@@ -1094,7 +1111,7 @@
         const response = await fetch(`${supabaseBaseUrl()}/rest/v1/${SUPABASE_TABLE}?id=eq.1&select=id,updated_at`, {
           method: "PATCH",
           headers: {
-            "apikey": SUPABASE_PUBLISHABLE_KEY,
+            "apikey": SUPABASE_ANON_KEY,
             "Authorization": `Bearer ${accessToken}`,
             "Content-Type": "application/json",
             "Prefer": "return=representation"
@@ -1308,7 +1325,7 @@
       const response = await fetch(`${supabaseBaseUrl()}/storage/v1/object/refresco-images/${encodedPath}`, {
         method: "POST",
         headers: {
-          "apikey": SUPABASE_PUBLISHABLE_KEY,
+          "apikey": SUPABASE_ANON_KEY,
           "Authorization": `Bearer ${accessToken}`,
           "Content-Type": blob.type || "image/jpeg",
           "x-upsert": "false"
@@ -1326,7 +1343,7 @@
         const accessToken = await validAccessToken();
         await fetch(`${supabaseBaseUrl()}/storage/v1/object/refresco-images/${encodeStoragePath(objectPath)}`, {
           method: "DELETE",
-          headers: { "apikey": SUPABASE_PUBLISHABLE_KEY, "Authorization": `Bearer ${accessToken}` },
+          headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${accessToken}` },
           cache: "no-store"
         });
       } catch (err) { console.warn("No se pudo borrar una imagen antigua del almacenamiento.", err); }
