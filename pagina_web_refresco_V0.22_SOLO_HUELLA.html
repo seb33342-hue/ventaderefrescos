@@ -1422,44 +1422,6 @@
     function setStatus(id, message, error = false) {
       const el = $(id); el.textContent = message; el.style.color = error ? "#ff8da0" : "#7cbaff";
     }
-    $("passkeySignIn").addEventListener("click", async () => {
-      const button = $("passkeySignIn");
-      button.disabled = true;
-      setStatus("passkeyLoginStatus", "Esperando la confirmación de tu dispositivo…", false);
-      try {
-        const client = await getPasskeyClient();
-        const { data, error } = await client.auth.signInWithPasskey();
-        if (error) throw error;
-        const session = data && data.session;
-        if (!session || !session.user || session.user.id !== SUPABASE_ADMIN_USER_ID) {
-          await client.auth.signOut({ scope: "local" }).catch(() => {});
-          throw new Error("Esta llave no pertenece a la cuenta administradora autorizada.");
-        }
-        supabaseSession = session;
-        setStatus("passkeyLoginStatus", "Acceso verificado.", false);
-        hideOverlay(loginOverlay);
-        showOverlay(adminOverlay);
-        renderAdminProducts();
-        setStatus("productStatus", "Sesión segura iniciada con llave de acceso.", false);
-        if (cloudCatalogIsEmpty && deviceDataSnapshot.products.length > 0) {
-          const importLocal = window.confirm("La base de datos compartida está vacía, pero este navegador tiene productos guardados localmente. ¿Quieres copiar esos productos y marcas a la nube para que estén disponibles en todos los teléfonos?");
-          if (importLocal) {
-            try {
-              products = await moveEmbeddedImagesToCloud(deviceDataSnapshot.products);
-              brands = deviceDataSnapshot.brands.slice();
-              if (await saveData("productStatus")) setStatus("productStatus", "Catálogo local copiado a la nube.", false);
-            } catch (migrationError) {
-              setStatus("productStatus", migrationError.message || "No se pudo copiar el catálogo local.", true);
-            }
-          }
-        }
-      } catch (err) {
-        setStatus("passkeyLoginStatus", err.message || "No se pudo verificar la llave de acceso.", true);
-      } finally {
-        button.disabled = false;
-      }
-    });
-
     async function handleAdminSignIn(event) {
       event.preventDefault();
       const form = $("adminLoginForm");

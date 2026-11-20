@@ -1,0 +1,15 @@
+{
+  "name": "venta-de-refrescos",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Catalogo de refrescos Etapa ll Edif.4 con panel administrador y base de datos Supabase",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node scripts/check.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "UNLICENSED"
+}
