@@ -31,7 +31,7 @@ usedIds.forEach((id) => {
 // 3) Elementos imprescindibles del catalogo y del panel
 ["adminLoginForm", "adminEmail", "adminPassword", "adminSessionStatus", "passkeyLoginStatus",
  "productForm", "productName", "productPrice", "productSize", "productBrand",
- "adminProducts", "catalogGrid"].forEach((id) => {
+ "adminProducts", "catalog"].forEach((id) => {
   if (!ids.has(id)) fail(`Falta el elemento obligatorio #${id}.`);
 });
 
